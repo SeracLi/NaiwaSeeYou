@@ -6,8 +6,13 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		0AEE4D982FF8FA51006BE40E /* NaiwaFaceRework.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0AEE4D972FF8FA51006BE40E /* NaiwaFaceRework.swift */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		0A28CEA22FC2CB2B00B1978D /* NaiwaSeeYou.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = NaiwaSeeYou.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		0AEE4D972FF8FA51006BE40E /* NaiwaFaceRework.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NaiwaFaceRework.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -34,6 +39,7 @@
 			children = (
 				0A28CEA42FC2CB2B00B1978D /* NaiwaSeeYou */,
 				0A28CEA32FC2CB2B00B1978D /* Products */,
+				0AEE4D972FF8FA51006BE40E /* NaiwaFaceRework.swift */,
 			);
 			sourceTree = "<group>";
 		};
@@ -119,6 +125,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				0AEE4D982FF8FA51006BE40E /* NaiwaFaceRework.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

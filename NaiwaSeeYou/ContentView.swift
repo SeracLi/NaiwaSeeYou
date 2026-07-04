@@ -312,20 +312,6 @@ struct NaiwaMouthView: View {
     }
 }
 
-// MARK: - Laughing Face
-
-struct NaiwaLaughingExpressionView: View {
-    let size: CGFloat
-
-    var body: some View {
-        Image("大笑表情")
-            .resizable()
-            .interpolation(.high)
-            .scaledToFit()
-            .frame(width: size, height: size)
-    }
-}
-
 // MARK: - Belly
 
 struct NaiwaBellyView: View {
@@ -372,10 +358,6 @@ struct ContentView: View {
     @State private var isLeftEyeClosed = false
     @State private var isRightEyeClosed = false
 
-    private let eyeSize: CGFloat = 86
-    private let eyeSpacing: CGFloat = 116
-    private let mouthTopPadding: CGFloat = 28
-
     private enum ExpressionControl {
         case leftEye
         case rightEye
@@ -393,51 +375,19 @@ struct ContentView: View {
 
     var body: some View {
         ZStack {
-            Color(red: 0.988, green: 0.8, blue: 0.145)
-                .ignoresSafeArea()
-
-            VStack {
-                Spacer()
-                NaiwaBellyView()
-            }
-            .ignoresSafeArea(edges: .bottom)
-
             GeometryReader { geometry in
                 ZStack(alignment: .top) {
+                    NaiwaLivingFaceView(
+                        pupilOffset: activePupilOffset,
+                        isLeftEyeClosed: isLeftEyeClosed,
+                        isRightEyeClosed: isRightEyeClosed,
+                        isLaughing: laughController.isLaughing
+                    )
+                    .allowsHitTesting(false)
+
                     Color.clear
                         .contentShape(Rectangle())
                         .gesture(interactionGesture(in: geometry.size))
-
-                    Group {
-                        if laughController.isLaughing {
-                            NaiwaLaughingExpressionView(size: laughingImageSize(in: geometry.size))
-                                .frame(width: geometry.size.width, alignment: .center)
-                                .offset(y: laughingVerticalOffset(in: geometry.size))
-                                .transition(.scale(scale: 0.92).combined(with: .opacity))
-                        } else {
-                            VStack(spacing: 0) {
-                                HStack(spacing: eyeSpacing) {
-                                    NaiwaEyeView(
-                                        pupilOffset: activePupilOffset,
-                                        size: eyeSize,
-                                        isClosed: isLeftEyeClosed
-                                    )
-                                    NaiwaEyeView(
-                                        pupilOffset: activePupilOffset,
-                                        size: eyeSize,
-                                        isClosed: isRightEyeClosed
-                                    )
-                                }
-
-                                NaiwaMouthView()
-                                    .padding(.top, mouthTopPadding)
-                            }
-                            .transition(.opacity)
-                        }
-                    }
-                    .frame(maxWidth: .infinity, alignment: .top)
-                    .padding(.top, expressionTop(in: geometry.size))
-                    .allowsHitTesting(false)
                 }
             }
         }
@@ -519,9 +469,10 @@ struct ContentView: View {
     }
 
     private func pupilOffset(for location: CGPoint, in size: CGSize) -> CGPoint {
+        let eyes = NaiwaFaceSpec.eyeCenters(in: size)
         let eyeCenter = CGPoint(
             x: size.width * 0.5,
-            y: expressionTop(in: size) + eyeSize * 0.5
+            y: (eyes.left.y + eyes.right.y) * 0.5
         )
         let x = (location.x - eyeCenter.x) / (size.width * 0.34)
         let y = (location.y - eyeCenter.y) / (size.height * 0.24)
@@ -533,50 +484,18 @@ struct ContentView: View {
     }
 
     private func expressionControl(at point: CGPoint, in size: CGSize) -> ExpressionControl? {
-        let top = expressionTop(in: size)
-        let eyeWidth = eyeSize * 0.86
-        let eyeHeight = eyeSize
-        let eyeCenterDistance = eyeWidth + eyeSpacing
-        let leftEyeOrigin = CGPoint(
-            x: size.width * 0.5 - eyeCenterDistance * 0.5 - eyeWidth * 0.5,
-            y: top
-        )
-        let rightEyeOrigin = CGPoint(
-            x: size.width * 0.5 + eyeCenterDistance * 0.5 - eyeWidth * 0.5,
-            y: top
-        )
-        let mouthSize = CGSize(width: 188, height: 34)
-        let mouthOrigin = CGPoint(
-            x: size.width * 0.5 - mouthSize.width * 0.5,
-            y: top + eyeSize + mouthTopPadding
-        )
-
-        let leftEyeFrame = CGRect(origin: leftEyeOrigin, size: CGSize(width: eyeWidth, height: eyeHeight)).insetBy(dx: -18, dy: -18)
-        let rightEyeFrame = CGRect(origin: rightEyeOrigin, size: CGSize(width: eyeWidth, height: eyeHeight)).insetBy(dx: -18, dy: -18)
-        let mouthFrame = CGRect(origin: mouthOrigin, size: mouthSize).insetBy(dx: -18, dy: -18)
-
-        if leftEyeFrame.contains(point) {
+        switch NaiwaFaceSpec.hitRegion(at: point, in: size) {
+        case .leftEye:
             return .leftEye
-        } else if rightEyeFrame.contains(point) {
+        case .rightEye:
             return .rightEye
-        } else if mouthFrame.contains(point) {
+        case .mouth:
             return .mouth
-        } else {
+        case nil:
             return nil
         }
     }
 
-    private func expressionTop(in size: CGSize) -> CGFloat {
-        size.height * 0.23
-    }
-
-    private func laughingImageSize(in size: CGSize) -> CGFloat {
-        min(max(size.width * 1.18, 440), 520)
-    }
-
-    private func laughingVerticalOffset(in size: CGSize) -> CGFloat {
-        -size.height * 0.1
-    }
 }
 
 #Preview {
