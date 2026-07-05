@@ -117,7 +117,7 @@ final class LaughController {
         playbackID = UUID()
         let currentID = playbackID
 
-        guard let url = Bundle.main.url(forResource: "hhhhh", withExtension: "mp3"),
+        guard let url = Bundle.main.url(forResource: "hhhh", withExtension: "mp3"),
               let player = try? AVAudioPlayer(contentsOf: url) else {
             withAnimation(.spring(response: 0.22, dampingFraction: 0.7)) {
                 isLaughing = true

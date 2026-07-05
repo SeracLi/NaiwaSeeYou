@@ -42,6 +42,8 @@ enum NaiwaFaceSpec {
     static let irisMid = Color(red: 0.376, green: 0.698, blue: 0.384)
     static let irisDeep = Color(red: 0.286, green: 0.588, blue: 0.259)
     static let irisRim = Color(red: 0.098, green: 0.216, blue: 0.118)
+    static let eyelidTop = Color(red: 1.000, green: 0.815, blue: 0.290)
+    static let eyelidBottom = Color(red: 0.985, green: 0.700, blue: 0.190)
 
     static let bellyLight = Color(red: 0.980, green: 0.840, blue: 0.640)
     static let bellyMid = Color(red: 0.965, green: 0.827, blue: 0.643)
@@ -165,13 +167,15 @@ struct NaiwaReworkSkinView: View {
 struct NaiwaReworkEyeView: View {
     let pupilOffset: CGPoint
     let unit: CGFloat
-    let isClosed: Bool
+    var closeAmount: CGFloat = 0
+    var isLeft: Bool = true
 
     var body: some View {
         let eyeW = NaiwaFaceSpec.eyeWidth * unit
         let eyeH = NaiwaFaceSpec.eyeHeight * unit
         let clamped = NaiwaFaceSpec.clampedPupilVector(pupilOffset)
         let drop = NaiwaFaceSpec.pupilRestingDrop * unit * (1 - abs(clamped.y))
+        let close = min(max(closeAmount, 0), 1)
 
         ZStack {
             Ellipse()
@@ -229,44 +233,32 @@ struct NaiwaReworkEyeView: View {
                     y: drop + clamped.y * NaiwaFaceSpec.pupilTravelY * unit
                 )
 
-            eyelid(eyeW: eyeW, eyeH: eyeH)
-                .scaleEffect(y: isClosed ? 1 : 0.001, anchor: .top)
-                .opacity(isClosed ? 1 : 0)
-        }
-        .frame(width: eyeW * 1.8, height: eyeH * 1.7)
-        .animation(.spring(response: 0.22, dampingFraction: 0.72), value: isClosed)
-    }
-
-    private func eyelid(eyeW: CGFloat, eyeH: CGFloat) -> some View {
-        ZStack {
             Ellipse()
                 .fill(
                     LinearGradient(
-                        colors: [
-                            NaiwaFaceSpec.skinUpperMid,
-                            Color(red: 0.95, green: 0.68, blue: 0.14)
-                        ],
-                        startPoint: .top,
-                        endPoint: .bottom
+                        colors: [NaiwaFaceSpec.eyelidTop, NaiwaFaceSpec.eyelidBottom],
+                        startPoint: .top, endPoint: .bottom
                     )
                 )
-                .frame(width: eyeW * 1.06, height: eyeH * 1.06)
+                .frame(width: eyeW * 1.08, height: eyeH * 1.08)
+                .scaleEffect(y: max(close, 0.001), anchor: .top)
 
-            Canvas { context, size in
-                var crease = Path()
-                crease.move(to: CGPoint(x: size.width * 0.16, y: size.height * 0.5))
-                crease.addQuadCurve(
-                    to: CGPoint(x: size.width * 0.84, y: size.height * 0.5),
-                    control: CGPoint(x: size.width * 0.5, y: size.height * 0.68)
-                )
-                context.stroke(
-                    crease,
-                    with: .color(NaiwaFaceSpec.mouthInk.opacity(0.82)),
-                    style: StrokeStyle(lineWidth: unit * 0.009, lineCap: .round)
-                )
-            }
-            .frame(width: eyeW * 0.85, height: eyeH * 0.5)
+            NaiwaCrescentShape(
+                unit: unit,
+                squeeze: 0,
+                innerOnRight: isLeft,
+                thickScale: 0.55,
+                riseScale: 0.55
+            )
+            .fill(Color.black.opacity(0.88))
+            .frame(
+                width: NaiwaLaughSpec.crescentWidth * unit + unit * 0.03,
+                height: NaiwaLaughSpec.crescentThick * unit * 3 + unit * 0.03
+            )
+            .offset(y: eyeH * 0.34)
+            .opacity(Double(close * close * close))
         }
+        .frame(width: eyeW * 1.8, height: eyeH * 1.7)
     }
 }
 
@@ -511,14 +503,16 @@ struct NaiwaReworkFaceView: View {
                 NaiwaReworkEyeView(
                     pupilOffset: pupilOffset,
                     unit: unit,
-                    isClosed: isLeftEyeClosed
+                    closeAmount: isLeftEyeClosed ? 1 : 0,
+                    isLeft: true
                 )
                 .position(eyes.left)
 
                 NaiwaReworkEyeView(
                     pupilOffset: pupilOffset,
                     unit: unit,
-                    isClosed: isRightEyeClosed
+                    closeAmount: isRightEyeClosed ? 1 : 0,
+                    isLeft: false
                 )
                 .position(eyes.right)
             }
@@ -532,22 +526,27 @@ struct NaiwaReworkFaceView: View {
 enum NaiwaLaughSpec {
     static let crescentWidth: CGFloat = 0.149
     static let crescentThick: CGFloat = 0.024
-    static let crescentRise: CGFloat = 0.025
-    static let crescentInnerDrop: CGFloat = 0.016
-    static let crescentOuterDrop: CGFloat = 0.004
+    static let crescentRise: CGFloat = 0.021
+    static let crescentApexRatio: CGFloat = 0.36
+    static let crescentInnerDrop: CGFloat = 0.014
+    static let crescentOuterDrop: CGFloat = 0.001
+    static let crescentTipRadiusRatio: CGFloat = 0.32
     static let moundDiameter: CGFloat = 0.21
+    static let moundWidthRatio: CGFloat = 0.86
 
     static let mouthTopHalfWidth: CGFloat = 0.183
     static let mouthTopSag: CGFloat = 0.033
     static let mouthMaxDepth: CGFloat = 0.251
-    static let mouthCornersRaise: CGFloat = 0.040
+    static let mouthCornersRaise: CGFloat = 0.028
     static let toothHeight: CGFloat = 0.056
     static let toothWidth: CGFloat = 0.050
     static let fangLength: CGFloat = 0.100
 
     static let upperTeethSpan: ClosedRange<CGFloat> = 0.24...0.76
-    static let lowerTeethHalfWidthRatio: CGFloat = 0.62
-    static let lowerTeethTopDepth: CGFloat = 0.62
+    static let lowerTeethHalfWidthRatio: CGFloat = 0.50
+    static let lowerTeethTopDepth: CGFloat = 0.52
+    static let lowerTeethBottomDepth: CGFloat = 1.05
+    static let lowerTeethFlatness: CGFloat = 0.55
 
     static let pulseHz: Double = 4.4
     static let wobbleHz: Double = 1.1
@@ -559,6 +558,7 @@ enum NaiwaLaughSpec {
     static let cavityBottomRed = Color(red: 0.46, green: 0.08, blue: 0.09)
     static let tongue = Color(red: 0.52, green: 0.12, blue: 0.13)
     static let toothWhite = Color(red: 0.95, green: 0.93, blue: 0.90)
+    static let toothShade = Color(red: 0.76, green: 0.71, blue: 0.66)
     static let moundCore = Color(red: 1.00, green: 0.93, blue: 0.55)
     static let moundLight = Color(red: 0.984, green: 0.875, blue: 0.302)
     static let moundShadow = Color(red: 0.890, green: 0.639, blue: 0.090)
@@ -570,46 +570,81 @@ struct NaiwaCrescentShape: Shape {
     let unit: CGFloat
     var squeeze: Double
     let innerOnRight: Bool
+    var thickScale: CGFloat = 1
+    var riseScale: CGFloat = 1
 
     func path(in rect: CGRect) -> Path {
         let width = NaiwaLaughSpec.crescentWidth * unit
-        let rise = NaiwaLaughSpec.crescentRise * unit * (1 + 0.12 * squeeze)
-        let thickness = NaiwaLaughSpec.crescentThick * unit
+        let rise = NaiwaLaughSpec.crescentRise * unit * riseScale * (1 + 0.10 * squeeze)
+        let thick = NaiwaLaughSpec.crescentThick * unit * thickScale
+        let offsetTop = thick * 0.62
+        let offsetBottom = thick * 0.38
+        let tipRadius = thick * NaiwaLaughSpec.crescentTipRadiusRatio
         let innerDrop = NaiwaLaughSpec.crescentInnerDrop * unit
         let outerDrop = NaiwaLaughSpec.crescentOuterDrop * unit
         let centerX = rect.midX
         let baseY = rect.midY + rise * 0.5
         let leftDrop = innerOnRight ? outerDrop : innerDrop
         let rightDrop = innerOnRight ? innerDrop : outerDrop
-        let left = CGPoint(x: centerX - width / 2, y: baseY + leftDrop)
-        let right = CGPoint(x: centerX + width / 2, y: baseY + rightDrop)
-        let endInset = thickness * 0.46
-        let endHalfHeight = thickness * 0.24
-        let topLeft = CGPoint(x: left.x + endInset, y: left.y - endHalfHeight)
-        let bottomLeft = CGPoint(x: left.x + endInset * 0.92, y: left.y + endHalfHeight)
-        let topRight = CGPoint(x: right.x - endInset, y: right.y - endHalfHeight)
-        let bottomRight = CGPoint(x: right.x - endInset * 0.92, y: right.y + endHalfHeight)
+
+        let tipLeft = CGPoint(x: centerX - width / 2, y: baseY + leftDrop)
+        let tipRight = CGPoint(x: centerX + width / 2, y: baseY + rightDrop)
+        let apexX = innerOnRight
+            ? tipLeft.x + width * NaiwaLaughSpec.crescentApexRatio
+            : tipRight.x - width * NaiwaLaughSpec.crescentApexRatio
+        let control = CGPoint(x: apexX, y: baseY - 2 * rise)
+
+        func normalize(_ dx: CGFloat, _ dy: CGFloat) -> CGVector {
+            let length = max(sqrt(dx * dx + dy * dy), 0.0001)
+            return CGVector(dx: dx / length, dy: dy / length)
+        }
+
+        let dirLeft = normalize(control.x - tipLeft.x, control.y - tipLeft.y)
+        let dirRight = normalize(control.x - tipRight.x, control.y - tipRight.y)
+        let capLeft = CGPoint(
+            x: tipLeft.x + dirLeft.dx * tipRadius,
+            y: tipLeft.y + dirLeft.dy * tipRadius
+        )
+        let capRight = CGPoint(
+            x: tipRight.x + dirRight.dx * tipRadius,
+            y: tipRight.y + dirRight.dy * tipRadius
+        )
+        let normalLeft = CGVector(dx: -dirLeft.dy, dy: dirLeft.dx)
+        let normalRight = CGVector(dx: -dirRight.dy, dy: dirRight.dx)
+
+        func offsetPoint(_ point: CGPoint, _ normal: CGVector, _ distance: CGFloat) -> CGPoint {
+            CGPoint(x: point.x + normal.dx * distance, y: point.y + normal.dy * distance)
+        }
+
+        let leftA = offsetPoint(capLeft, normalLeft, tipRadius)
+        let leftB = offsetPoint(capLeft, normalLeft, -tipRadius)
+        let topLeft = leftA.y < leftB.y ? leftA : leftB
+        let bottomLeft = leftA.y < leftB.y ? leftB : leftA
+        let rightA = offsetPoint(capRight, normalRight, tipRadius)
+        let rightB = offsetPoint(capRight, normalRight, -tipRadius)
+        let topRight = rightA.y < rightB.y ? rightA : rightB
+        let bottomRight = rightA.y < rightB.y ? rightB : rightA
+
+        let baseMidY = (tipLeft.y + tipRight.y) / 2
+        let topMidY = baseMidY - rise - offsetTop
+        let bottomMidY = baseMidY - rise + offsetBottom
+        let controlTop = CGPoint(x: apexX, y: 2 * topMidY - 0.5 * (topLeft.y + topRight.y))
+        let controlBottom = CGPoint(x: apexX, y: 2 * bottomMidY - 0.5 * (bottomLeft.y + bottomRight.y))
+        let capControlLeft = CGPoint(
+            x: capLeft.x - dirLeft.dx * 2 * tipRadius,
+            y: capLeft.y - dirLeft.dy * 2 * tipRadius
+        )
+        let capControlRight = CGPoint(
+            x: capRight.x - dirRight.dx * 2 * tipRadius,
+            y: capRight.y - dirRight.dy * 2 * tipRadius
+        )
 
         var path = Path()
         path.move(to: topLeft)
-        path.addCurve(
-            to: topRight,
-            control1: CGPoint(x: centerX - width * 0.34, y: baseY - 2 * rise - thickness * 0.72),
-            control2: CGPoint(x: centerX + width * 0.34, y: baseY - 2 * rise - thickness * 0.72)
-        )
-        path.addQuadCurve(
-            to: bottomRight,
-            control: CGPoint(x: right.x - endInset * 0.08, y: right.y)
-        )
-        path.addCurve(
-            to: bottomLeft,
-            control1: CGPoint(x: centerX + width * 0.32, y: baseY - 2 * rise + thickness * 0.58),
-            control2: CGPoint(x: centerX - width * 0.32, y: baseY - 2 * rise + thickness * 0.58)
-        )
-        path.addQuadCurve(
-            to: topLeft,
-            control: CGPoint(x: left.x + endInset * 0.08, y: left.y)
-        )
+        path.addQuadCurve(to: topRight, control: controlTop)
+        path.addQuadCurve(to: bottomRight, control: capControlRight)
+        path.addQuadCurve(to: bottomLeft, control: controlBottom)
+        path.addQuadCurve(to: topLeft, control: capControlLeft)
         path.closeSubpath()
         return path
     }
@@ -622,21 +657,25 @@ struct NaiwaLaughEyeView: View {
 
     var body: some View {
         let mound = NaiwaLaughSpec.moundDiameter * unit
+        let moundWidth = mound * NaiwaLaughSpec.moundWidthRatio
 
         ZStack {
             Ellipse()
-                .fill(Color(red: 0.55, green: 0.32, blue: 0.05).opacity(0.30))
-                .frame(width: mound * 0.72, height: mound * 0.26)
-                .offset(y: mound * 0.48)
-                .blur(radius: unit * 0.014)
+                .fill(Color(red: 0.55, green: 0.32, blue: 0.05).opacity(0.22))
+                .frame(width: moundWidth * 0.58, height: mound * 0.13)
+                .offset(y: mound * 0.52)
+                .blur(radius: unit * 0.012)
 
             Ellipse()
-                .fill(NaiwaLaughSpec.moundShadow.opacity(0.72))
-                .frame(width: mound * 0.62, height: mound * 0.30)
-                .offset(y: mound * 0.36)
-                .blur(radius: unit * 0.010)
+                .trim(from: 0.06, to: 0.44)
+                .stroke(
+                    NaiwaLaughSpec.moundShadow.opacity(0.68),
+                    style: StrokeStyle(lineWidth: unit * 0.022, lineCap: .round)
+                )
+                .frame(width: moundWidth * 0.88, height: mound * 0.88)
+                .blur(radius: unit * 0.009)
 
-            Circle()
+            Ellipse()
                 .fill(
                     RadialGradient(
                         stops: [
@@ -649,18 +688,18 @@ struct NaiwaLaughEyeView: View {
                         endRadius: mound * 0.58
                     )
                 )
-                .frame(width: mound, height: mound)
+                .frame(width: moundWidth, height: mound)
                 .blur(radius: unit * 0.004)
 
             NaiwaCrescentShape(unit: unit, squeeze: squeeze, innerOnRight: isLeft)
                 .fill(Color.black)
                 .frame(
-                    width: NaiwaLaughSpec.crescentWidth * unit + unit * 0.03,
+                    width: NaiwaLaughSpec.crescentWidth * unit + unit * 0.06,
                     height: (
                         NaiwaLaughSpec.crescentRise * 2
-                            + NaiwaLaughSpec.crescentThick
+                            + NaiwaLaughSpec.crescentThick * 2
                             + NaiwaLaughSpec.crescentInnerDrop
-                    ) * unit + unit * 0.03
+                    ) * unit + unit * 0.06
                 )
         }
         .frame(width: mound * 1.25, height: mound * 1.25)
@@ -726,6 +765,12 @@ struct NaiwaLaughMouthView: View {
                 .mask(bottomSidesMask)
 
             NaiwaLaughMouthShape(unit: unit, jaw: jaw)
+                .stroke(NaiwaLaughSpec.rimLight.opacity(0.55), lineWidth: unit * 0.016)
+                .blur(radius: unit * 0.010)
+                .offset(y: -unit * 0.024)
+                .mask(topMask)
+
+            NaiwaLaughMouthShape(unit: unit, jaw: jaw)
                 .stroke(NaiwaLaughSpec.rimShadow.opacity(0.42), lineWidth: unit * 0.018)
                 .blur(radius: unit * 0.012)
                 .offset(y: -unit * 0.008)
@@ -748,9 +793,10 @@ struct NaiwaLaughMouthView: View {
                     with: .linearGradient(
                         Gradient(stops: [
                             .init(color: NaiwaLaughSpec.cavityBlack, location: 0.00),
-                            .init(color: NaiwaLaughSpec.cavityBlack, location: 0.30),
-                            .init(color: NaiwaLaughSpec.cavityMid, location: 0.62),
-                            .init(color: NaiwaLaughSpec.cavityBottomRed, location: 1.00)
+                            .init(color: NaiwaLaughSpec.cavityBlack, location: 0.38),
+                            .init(color: NaiwaLaughSpec.cavityMid, location: 0.66),
+                            .init(color: NaiwaLaughSpec.cavityBottomRed, location: 0.90),
+                            .init(color: Color(red: 0.52, green: 0.10, blue: 0.11), location: 1.00)
                         ]),
                         startPoint: CGPoint(x: centerX, y: cornerY),
                         endPoint: CGPoint(x: centerX, y: cornerY + depth)
@@ -762,12 +808,26 @@ struct NaiwaLaughMouthView: View {
 
                     layer.fill(
                         Path(ellipseIn: CGRect(
-                            x: centerX - halfTop * 0.46,
-                            y: cornerY + depth * 0.62,
-                            width: halfTop * 0.92,
-                            height: depth * 0.40
+                            x: centerX - halfTop * 0.60,
+                            y: cornerY + depth * 0.58,
+                            width: halfTop * 1.20,
+                            height: depth * 0.55
                         )),
-                        with: .color(NaiwaLaughSpec.tongue)
+                        with: .radialGradient(
+                            Gradient(stops: [
+                                .init(
+                                    color: Color(red: 0.50, green: 0.10, blue: 0.11).opacity(0.85),
+                                    location: 0.0
+                                ),
+                                .init(
+                                    color: Color(red: 0.50, green: 0.10, blue: 0.11).opacity(0.0),
+                                    location: 1.0
+                                )
+                            ]),
+                            center: CGPoint(x: centerX, y: cornerY + depth * 0.88),
+                            startRadius: 0,
+                            endRadius: halfTop * 0.85
+                        )
                     )
 
                     func topEdge(_ t: CGFloat) -> (position: CGPoint, angle: CGFloat) {
@@ -779,6 +839,15 @@ struct NaiwaLaughMouthView: View {
                         return (CGPoint(x: x, y: y), atan2(dy, dx))
                     }
 
+                    func toothColor(_ norm: CGFloat) -> GraphicsContext.Shading {
+                        let factor = Double(min(max(norm, 0), 1)) * 0.9
+                        return .color(Color(
+                            red: 0.95 - 0.19 * factor,
+                            green: 0.93 - 0.22 * factor,
+                            blue: 0.90 - 0.24 * factor
+                        ))
+                    }
+
                     let lowerHalfWidth = halfTop * NaiwaLaughSpec.lowerTeethHalfWidthRatio
                     let lowerLeft = CGPoint(
                         x: centerX - lowerHalfWidth,
@@ -788,20 +857,60 @@ struct NaiwaLaughMouthView: View {
                         x: centerX + lowerHalfWidth,
                         y: cornerY + depth * NaiwaLaughSpec.lowerTeethTopDepth
                     )
-                    let lowerControl = CGPoint(x: centerX, y: cornerY + depth * 1.08)
+                    let lowerBottomY = cornerY + depth * NaiwaLaughSpec.lowerTeethBottomDepth
+                    let spread = lowerHalfWidth * NaiwaLaughSpec.lowerTeethFlatness
+                    let lowerC1 = CGPoint(x: centerX - spread, y: lowerBottomY)
+                    let lowerC2 = CGPoint(x: centerX + spread, y: lowerBottomY)
                     func lowerEdge(_ t: CGFloat) -> (position: CGPoint, angle: CGFloat) {
                         let mt = 1 - t
-                        let x = mt * mt * lowerLeft.x + 2 * mt * t * lowerControl.x + t * t * lowerRight.x
-                        let y = mt * mt * lowerLeft.y + 2 * mt * t * lowerControl.y + t * t * lowerRight.y
-                        let dx = 2 * mt * (lowerControl.x - lowerLeft.x) + 2 * t * (lowerRight.x - lowerControl.x)
-                        let dy = 2 * mt * (lowerControl.y - lowerLeft.y) + 2 * t * (lowerRight.y - lowerControl.y)
+                        let x = mt * mt * mt * lowerLeft.x
+                            + 3 * mt * mt * t * lowerC1.x
+                            + 3 * mt * t * t * lowerC2.x
+                            + t * t * t * lowerRight.x
+                        let y = mt * mt * mt * lowerLeft.y
+                            + 3 * mt * mt * t * lowerC1.y
+                            + 3 * mt * t * t * lowerC2.y
+                            + t * t * t * lowerRight.y
+                        let dx = 3 * mt * mt * (lowerC1.x - lowerLeft.x)
+                            + 6 * mt * t * (lowerC2.x - lowerC1.x)
+                            + 3 * t * t * (lowerRight.x - lowerC2.x)
+                        let dy = 3 * mt * mt * (lowerC1.y - lowerLeft.y)
+                            + 6 * mt * t * (lowerC2.y - lowerC1.y)
+                            + 3 * t * t * (lowerRight.y - lowerC2.y)
                         return (CGPoint(x: x, y: y), atan2(dy, dx))
                     }
 
-                    for t in [CGFloat(0.06), CGFloat(0.20), CGFloat(0.35), CGFloat(0.50), CGFloat(0.65), CGFloat(0.80), CGFloat(0.94)] {
-                        let norm = abs(t - 0.5) * 2
+                    let arcSamples = 64
+                    var arcPoints: [CGPoint] = []
+                    for index in 0...arcSamples {
+                        arcPoints.append(lowerEdge(CGFloat(index) / CGFloat(arcSamples)).position)
+                    }
+                    var arcCumulative: [CGFloat] = [0]
+                    for index in 1...arcSamples {
+                        let distance = hypot(
+                            arcPoints[index].x - arcPoints[index - 1].x,
+                            arcPoints[index].y - arcPoints[index - 1].y
+                        )
+                        arcCumulative.append(arcCumulative[index - 1] + distance)
+                    }
+                    let arcTotal = max(arcCumulative[arcSamples], 0.0001)
+                    func tForArcFraction(_ fraction: CGFloat) -> CGFloat {
+                        let target = fraction * arcTotal
+                        var index = 0
+                        while index < arcSamples - 1 && arcCumulative[index + 1] < target {
+                            index += 1
+                        }
+                        let segment = arcCumulative[index + 1] - arcCumulative[index]
+                        let localFraction = segment > 0 ? (target - arcCumulative[index]) / segment : 0
+                        return (CGFloat(index) + localFraction) / CGFloat(arcSamples)
+                    }
+
+                    let lowerFractions: [CGFloat] = [0.060, 0.940, 0.186, 0.814, 0.311, 0.689, 0.437, 0.563]
+                    for fraction in lowerFractions {
+                        let t = tForArcFraction(fraction)
+                        let norm = abs(fraction - 0.5) * 2
                         let lowerToothWidth = NaiwaLaughSpec.toothWidth * unit * 0.72 * (1 - 0.30 * norm)
-                        let lowerToothHeight = NaiwaLaughSpec.toothHeight * unit * 0.66 * (1 - 0.28 * norm)
+                        let lowerToothHeight = NaiwaLaughSpec.toothHeight * unit * 0.62 * (1 - 0.28 * norm)
                         let (position, angle) = lowerEdge(t)
                         var toothContext = layer
                         toothContext.translateBy(x: position.x, y: position.y)
@@ -813,19 +922,21 @@ struct NaiwaLaughMouthView: View {
                                 width: lowerToothWidth,
                                 height: lowerToothHeight
                             ), cornerRadius: lowerToothWidth * 0.35),
-                            with: .color(NaiwaLaughSpec.toothWhite)
+                            with: toothColor(norm)
                         )
                     }
 
                     let span = NaiwaLaughSpec.upperTeethSpan
                     let teethCount = 8
-                    for index in 0..<teethCount {
+                    let upperBaseHeight = NaiwaLaughSpec.toothHeight * unit * 0.86
+                    let upperOrder = [0, 7, 1, 6, 2, 5, 3, 4]
+                    for index in upperOrder {
                         let t = span.lowerBound
                             + CGFloat(index) * (span.upperBound - span.lowerBound)
                             / CGFloat(teethCount - 1)
                         let norm = abs(t - 0.5) / ((span.upperBound - span.lowerBound) / 2)
-                        let toothWidth = NaiwaLaughSpec.toothWidth * unit * 0.86 * (1 - 0.48 * norm)
-                        let toothHeight = NaiwaLaughSpec.toothHeight * unit * (1 - 0.42 * norm)
+                        let toothWidth = NaiwaLaughSpec.toothWidth * unit * 0.86 * (1 - 0.50 * norm)
+                        let toothHeight = upperBaseHeight * (1 - 0.56 * norm)
                         let (position, angle) = topEdge(t)
                         var toothContext = layer
                         toothContext.translateBy(x: position.x, y: position.y)
@@ -837,7 +948,7 @@ struct NaiwaLaughMouthView: View {
                                 width: toothWidth,
                                 height: toothHeight
                             ), cornerRadius: toothWidth * 0.28),
-                            with: .color(NaiwaLaughSpec.toothWhite)
+                            with: toothColor(norm)
                         )
                     }
                 }
@@ -878,6 +989,8 @@ struct NaiwaLivingFaceView: View {
     var isRightEyeClosed = false
     var isLaughing = false
 
+    @State private var blink: CGFloat = 0
+
     var body: some View {
         GeometryReader { geometry in
             let unit = NaiwaFaceSpec.featureUnit(for: geometry.size)
@@ -887,6 +1000,8 @@ struct NaiwaLivingFaceView: View {
             let cornersY = mouth.y - NaiwaLaughSpec.mouthCornersRaise * unit
             let boxHeight = (NaiwaLaughSpec.mouthMaxDepth + NaiwaLaughSpec.mouthTopSag) * unit + unit * 0.10
             let laughMouthCenterY = cornersY - unit * 0.02 + boxHeight / 2
+            let closeLeft = max(blink, isLeftEyeClosed ? 1 : 0)
+            let closeRight = max(blink, isRightEyeClosed ? 1 : 0)
 
             ZStack {
                 NaiwaReworkSkinView()
@@ -906,15 +1021,25 @@ struct NaiwaLivingFaceView: View {
                             NaiwaReworkEyeView(
                                 pupilOffset: pupilOffset,
                                 unit: unit,
-                                isClosed: isLeftEyeClosed
+                                closeAmount: closeLeft,
+                                isLeft: true
                             )
                             .position(eyes.left)
+                            .animation(
+                                .spring(response: 0.22, dampingFraction: 0.72),
+                                value: isLeftEyeClosed
+                            )
                             NaiwaReworkEyeView(
                                 pupilOffset: pupilOffset,
                                 unit: unit,
-                                isClosed: isRightEyeClosed
+                                closeAmount: closeRight,
+                                isLeft: false
                             )
                             .position(eyes.right)
+                            .animation(
+                                .spring(response: 0.22, dampingFraction: 0.72),
+                                value: isRightEyeClosed
+                            )
                         }
                         .opacity(1 - progress)
                         .scaleEffect(1 - 0.05 * progress, anchor: UnitPoint(x: 0.5, y: 0.38))
@@ -938,6 +1063,29 @@ struct NaiwaLivingFaceView: View {
             }
         }
         .ignoresSafeArea()
+        .task { await autoBlinkLoop() }
+    }
+
+    private func autoBlinkLoop() async {
+        while !Task.isCancelled {
+            let wait = Double.random(in: 2.2...5.8)
+            try? await Task.sleep(nanoseconds: UInt64(wait * 1_000_000_000))
+            guard !Task.isCancelled else { return }
+            guard !isLaughing, !isLeftEyeClosed, !isRightEyeClosed else { continue }
+            await performBlink()
+            if Double.random(in: 0...1) < 0.18 {
+                try? await Task.sleep(nanoseconds: 160_000_000)
+                guard !isLaughing else { continue }
+                await performBlink()
+            }
+        }
+    }
+
+    private func performBlink() async {
+        withAnimation(.easeIn(duration: 0.09)) { blink = 1 }
+        try? await Task.sleep(nanoseconds: 120_000_000)
+        withAnimation(.easeOut(duration: 0.17)) { blink = 0 }
+        try? await Task.sleep(nanoseconds: 180_000_000)
     }
 }
 
