@@ -42,8 +42,9 @@ enum NaiwaFaceSpec {
     static let irisMid = Color(red: 0.376, green: 0.698, blue: 0.384)
     static let irisDeep = Color(red: 0.286, green: 0.588, blue: 0.259)
     static let irisRim = Color(red: 0.098, green: 0.216, blue: 0.118)
-    static let eyelidTop = Color(red: 1.000, green: 0.815, blue: 0.290)
-    static let eyelidBottom = Color(red: 0.985, green: 0.700, blue: 0.190)
+    static let eyelidTop = Color(red: 1.000, green: 0.860, blue: 0.370)
+    static let eyelidMid = Color(red: 1.000, green: 0.780, blue: 0.260)
+    static let eyelidBottom = Color(red: 0.970, green: 0.700, blue: 0.190)
 
     static let bellyLight = Color(red: 0.980, green: 0.840, blue: 0.640)
     static let bellyMid = Color(red: 0.965, green: 0.827, blue: 0.643)
@@ -124,21 +125,149 @@ enum NaiwaFaceSpec {
     }
 }
 
+// MARK: - Background Theme
+
+struct NaiwaThemePalette {
+    let skinTop: Color
+    let skinUpperMid: Color
+    let skinLowerMid: Color
+    let skinChest: Color
+    let eyelidTop: Color
+    let eyelidMid: Color
+    let eyelidBottom: Color
+    let eyeProtrusionGlow: Color
+    let chinShadowTone: Color
+    let muzzleGlow: Color
+    let moundCore: Color
+    let moundLight: Color
+    let moundShadow: Color
+    let rimShadow: Color
+    let rimLight: Color
+}
+
+extension NaiwaThemePalette {
+    static let yellow = NaiwaThemePalette(
+        skinTop: Color(red: 1.000, green: 0.820, blue: 0.286),
+        skinUpperMid: Color(red: 1.000, green: 0.800, blue: 0.274),
+        skinLowerMid: Color(red: 0.984, green: 0.660, blue: 0.176),
+        skinChest: Color(red: 0.984, green: 0.631, blue: 0.145),
+        eyelidTop: Color(red: 1.000, green: 0.860, blue: 0.370),
+        eyelidMid: Color(red: 1.000, green: 0.780, blue: 0.260),
+        eyelidBottom: Color(red: 0.970, green: 0.700, blue: 0.190),
+        eyeProtrusionGlow: Color(red: 1.000, green: 0.875, blue: 0.400),
+        chinShadowTone: Color(red: 0.850, green: 0.480, blue: 0.080),
+        muzzleGlow: Color(red: 1.000, green: 0.880, blue: 0.450),
+        moundCore: Color(red: 1.000, green: 0.930, blue: 0.550),
+        moundLight: Color(red: 0.984, green: 0.875, blue: 0.302),
+        moundShadow: Color(red: 0.890, green: 0.639, blue: 0.090),
+        rimShadow: Color(red: 0.620, green: 0.360, blue: 0.050),
+        rimLight: Color(red: 1.000, green: 0.860, blue: 0.340)
+    )
+
+    static let pink = NaiwaThemePalette(
+        skinTop: Color(red: 1.000, green: 0.815, blue: 0.860),
+        skinUpperMid: Color(red: 1.000, green: 0.735, blue: 0.795),
+        skinLowerMid: Color(red: 0.980, green: 0.555, blue: 0.660),
+        skinChest: Color(red: 0.960, green: 0.470, blue: 0.585),
+        eyelidTop: Color(red: 1.000, green: 0.855, blue: 0.895),
+        eyelidMid: Color(red: 1.000, green: 0.755, blue: 0.815),
+        eyelidBottom: Color(red: 0.980, green: 0.590, blue: 0.690),
+        eyeProtrusionGlow: Color(red: 1.000, green: 0.870, blue: 0.900),
+        chinShadowTone: Color(red: 0.720, green: 0.280, blue: 0.420),
+        muzzleGlow: Color(red: 1.000, green: 0.900, blue: 0.930),
+        moundCore: Color(red: 1.000, green: 0.920, blue: 0.940),
+        moundLight: Color(red: 1.000, green: 0.780, blue: 0.830),
+        moundShadow: Color(red: 0.880, green: 0.500, blue: 0.610),
+        rimShadow: Color(red: 0.550, green: 0.190, blue: 0.300),
+        rimLight: Color(red: 1.000, green: 0.800, blue: 0.860)
+    )
+
+    static let blue = NaiwaThemePalette(
+        skinTop: Color(red: 0.740, green: 0.905, blue: 1.000),
+        skinUpperMid: Color(red: 0.665, green: 0.850, blue: 1.000),
+        skinLowerMid: Color(red: 0.395, green: 0.680, blue: 0.960),
+        skinChest: Color(red: 0.290, green: 0.590, blue: 0.920),
+        eyelidTop: Color(red: 0.800, green: 0.940, blue: 1.000),
+        eyelidMid: Color(red: 0.700, green: 0.870, blue: 1.000),
+        eyelidBottom: Color(red: 0.470, green: 0.740, blue: 0.970),
+        eyeProtrusionGlow: Color(red: 0.800, green: 0.920, blue: 1.000),
+        chinShadowTone: Color(red: 0.100, green: 0.280, blue: 0.550),
+        muzzleGlow: Color(red: 0.850, green: 0.950, blue: 1.000),
+        moundCore: Color(red: 0.920, green: 0.970, blue: 1.000),
+        moundLight: Color(red: 0.700, green: 0.870, blue: 1.000),
+        moundShadow: Color(red: 0.320, green: 0.600, blue: 0.860),
+        rimShadow: Color(red: 0.090, green: 0.260, blue: 0.500),
+        rimLight: Color(red: 0.700, green: 0.860, blue: 1.000)
+    )
+
+    static let green = NaiwaThemePalette(
+        skinTop: Color(red: 0.760, green: 0.960, blue: 0.740),
+        skinUpperMid: Color(red: 0.650, green: 0.920, blue: 0.620),
+        skinLowerMid: Color(red: 0.400, green: 0.770, blue: 0.400),
+        skinChest: Color(red: 0.310, green: 0.660, blue: 0.310),
+        eyelidTop: Color(red: 0.815, green: 0.975, blue: 0.795),
+        eyelidMid: Color(red: 0.700, green: 0.910, blue: 0.680),
+        eyelidBottom: Color(red: 0.510, green: 0.810, blue: 0.490),
+        eyeProtrusionGlow: Color(red: 0.850, green: 0.960, blue: 0.800),
+        chinShadowTone: Color(red: 0.100, green: 0.420, blue: 0.150),
+        muzzleGlow: Color(red: 0.880, green: 0.970, blue: 0.830),
+        moundCore: Color(red: 0.940, green: 1.000, blue: 0.880),
+        moundLight: Color(red: 0.700, green: 0.930, blue: 0.670),
+        moundShadow: Color(red: 0.320, green: 0.660, blue: 0.290),
+        rimShadow: Color(red: 0.100, green: 0.360, blue: 0.100),
+        rimLight: Color(red: 0.750, green: 0.930, blue: 0.720)
+    )
+}
+
+enum NaiwaBackgroundTheme: String, CaseIterable, Identifiable {
+    case yellow
+    case pink
+    case blue
+    case green
+
+    var id: String { rawValue }
+
+    var palette: NaiwaThemePalette {
+        switch self {
+        case .yellow: return .yellow
+        case .pink:   return .pink
+        case .blue:   return .blue
+        case .green:  return .green
+        }
+    }
+
+    var swatchGradient: [Color] { [palette.skinTop, palette.skinChest] }
+}
+
+private struct NaiwaThemeKey: EnvironmentKey {
+    static let defaultValue: NaiwaBackgroundTheme = .yellow
+}
+
+extension EnvironmentValues {
+    var naiwaTheme: NaiwaBackgroundTheme {
+        get { self[NaiwaThemeKey.self] }
+        set { self[NaiwaThemeKey.self] = newValue }
+    }
+}
+
 // MARK: - Skin
 
 struct NaiwaReworkSkinView: View {
+    @Environment(\.naiwaTheme) private var theme
+
     var body: some View {
         GeometryReader { geo in
             let w = geo.size.width
+            let palette = theme.palette
 
             ZStack {
                 LinearGradient(
                     stops: [
-                        .init(color: NaiwaFaceSpec.skinTop, location: 0.00),
-                        .init(color: NaiwaFaceSpec.skinUpperMid, location: 0.30),
-                        .init(color: NaiwaFaceSpec.skinLowerMid, location: 0.55),
-                        .init(color: NaiwaFaceSpec.skinChest, location: 0.80),
-                        .init(color: NaiwaFaceSpec.skinChest, location: 1.00)
+                        .init(color: palette.skinTop, location: 0.00),
+                        .init(color: palette.skinUpperMid, location: 0.30),
+                        .init(color: palette.skinLowerMid, location: 0.55),
+                        .init(color: palette.skinChest, location: 0.80),
+                        .init(color: palette.skinChest, location: 1.00)
                     ],
                     startPoint: .top,
                     endPoint: .bottom
@@ -164,27 +293,84 @@ struct NaiwaReworkSkinView: View {
 
 // MARK: - Eye
 
+/// Animated eyelids that close toward a shared seam, with the upper lid traveling farther.
+struct NaiwaLidShape: Shape {
+    var close: CGFloat
+    let isUpper: Bool
+    let arcRise: CGFloat
+
+    var animatableData: CGFloat {
+        get { close }
+        set { close = newValue }
+    }
+
+    func path(in rect: CGRect) -> Path {
+        let meetY = rect.height * 0.60
+        let start: CGFloat = isUpper
+            ? -rect.height * 0.06
+            : rect.height * 1.06 + 2 * arcRise
+        // The lower lid overshoots the seam slightly so the two lids overlap
+        // instead of merely abutting — abutting fills leave an anti-aliased
+        // hairline at the seam that reveals the iris beneath as a faint pale
+        // line. Both lids share the same gradient, so the overlap is seamless.
+        let overlap: CGFloat = isUpper ? 0 : rect.height * 0.03 * close
+        let edgeY = start + (meetY - start) * close - overlap
+        var path = Path()
+
+        if isUpper {
+            path.move(to: CGPoint(x: 0, y: 0))
+            path.addLine(to: CGPoint(x: 0, y: edgeY))
+            path.addQuadCurve(
+                to: CGPoint(x: rect.width, y: edgeY),
+                control: CGPoint(x: rect.width / 2, y: edgeY - 2 * arcRise)
+            )
+            path.addLine(to: CGPoint(x: rect.width, y: 0))
+        } else {
+            path.move(to: CGPoint(x: 0, y: rect.height))
+            path.addLine(to: CGPoint(x: 0, y: edgeY))
+            path.addQuadCurve(
+                to: CGPoint(x: rect.width, y: edgeY),
+                control: CGPoint(x: rect.width / 2, y: edgeY - 2 * arcRise)
+            )
+            path.addLine(to: CGPoint(x: rect.width, y: rect.height))
+        }
+
+        path.closeSubpath()
+        return path
+    }
+}
+
 struct NaiwaReworkEyeView: View {
+    @Environment(\.naiwaTheme) private var theme
     let pupilOffset: CGPoint
     let unit: CGFloat
     var closeAmount: CGFloat = 0
     var isLeft: Bool = true
+    var dizzyProgress: CGFloat = 0
+    /// A held close (tap-to-close / sleep) shows the original crisp seam; an
+    /// automatic blink uses a softened, later-fading seam so it doesn't flash.
+    var strongSeam: Bool = false
 
     var body: some View {
+        let palette = theme.palette
         let eyeW = NaiwaFaceSpec.eyeWidth * unit
         let eyeH = NaiwaFaceSpec.eyeHeight * unit
         let clamped = NaiwaFaceSpec.clampedPupilVector(pupilOffset)
         let drop = NaiwaFaceSpec.pupilRestingDrop * unit * (1 - abs(clamped.y))
         let close = min(max(closeAmount, 0), 1)
+        let lidW = eyeW * 1.10
+        let lidH = eyeH * 1.10
+        let arcRise = NaiwaLaughSpec.crescentRise * unit * 0.55
+        let seamOffsetY = ((-0.06 + 0.66 * close) - 0.5) * lidH
 
         ZStack {
             Ellipse()
                 .fill(
                     RadialGradient(
                         stops: [
-                            .init(color: NaiwaFaceSpec.eyeProtrusionGlow.opacity(0.0), location: 0.00),
-                            .init(color: NaiwaFaceSpec.eyeProtrusionGlow.opacity(0.55), location: 0.52),
-                            .init(color: NaiwaFaceSpec.eyeProtrusionGlow.opacity(0.0), location: 1.00)
+                            .init(color: palette.eyeProtrusionGlow.opacity(0.0), location: 0.00),
+                            .init(color: palette.eyeProtrusionGlow.opacity(0.55), location: 0.52),
+                            .init(color: palette.eyeProtrusionGlow.opacity(0.0), location: 1.00)
                         ],
                         center: .center,
                         startRadius: 0,
@@ -232,31 +418,75 @@ struct NaiwaReworkEyeView: View {
                     x: clamped.x * NaiwaFaceSpec.pupilTravelX * unit,
                     y: drop + clamped.y * NaiwaFaceSpec.pupilTravelY * unit
                 )
+                .opacity(1 - Double(dizzyProgress) * 0.85)
 
-            Ellipse()
-                .fill(
-                    LinearGradient(
-                        colors: [NaiwaFaceSpec.eyelidTop, NaiwaFaceSpec.eyelidBottom],
-                        startPoint: .top, endPoint: .bottom
+            TimelineView(.animation(minimumInterval: 1.0 / 24.0, paused: dizzyProgress < 0.02)) { timeline in
+                let sign: Double = isLeft ? 1.0 : -1.0
+                let angle = timeline.date.timeIntervalSinceReferenceDate * 3.2 * sign
+                DizzySpiralShape(turns: 2.6)
+                    .stroke(
+                        Color(red: 0.05, green: 0.05, blue: 0.05).opacity(0.92),
+                        style: StrokeStyle(lineWidth: unit * 0.0045, lineCap: .round, lineJoin: .round)
                     )
-                )
-                .frame(width: eyeW * 1.08, height: eyeH * 1.08)
-                .scaleEffect(y: max(close, 0.001), anchor: .top)
+                    .rotationEffect(.radians(angle))
+            }
+            .frame(width: eyeW * 0.80, height: eyeH * 0.78)
+            .mask(Ellipse().frame(width: eyeW * 0.94, height: eyeH * 0.94))
+            .opacity(Double(dizzyProgress))
+
+            ZStack {
+                Rectangle()
+                    .fill(
+                        LinearGradient(
+                            stops: [
+                                .init(color: palette.eyelidTop, location: 0.00),
+                                .init(color: palette.eyelidMid, location: 0.60),
+                                .init(color: palette.eyelidBottom, location: 1.00)
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+                    .clipShape(NaiwaLidShape(close: close, isUpper: true, arcRise: arcRise))
+                Rectangle()
+                    .fill(
+                        LinearGradient(
+                            stops: [
+                                .init(color: palette.eyelidTop, location: 0.00),
+                                .init(color: palette.eyelidMid, location: 0.60),
+                                .init(color: palette.eyelidBottom, location: 1.00)
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+                    .clipShape(NaiwaLidShape(close: close, isUpper: false, arcRise: arcRise))
+            }
+            .frame(width: lidW, height: lidH)
+            .clipShape(Ellipse())
 
             NaiwaCrescentShape(
                 unit: unit,
                 squeeze: 0,
                 innerOnRight: isLeft,
-                thickScale: 0.55,
+                thickScale: strongSeam ? 0.55 : 0.42,
                 riseScale: 0.55
             )
-            .fill(Color.black.opacity(0.88))
+            .fill(strongSeam
+                ? Color.black.opacity(0.88)
+                : palette.chinShadowTone.opacity(0.55))
             .frame(
                 width: NaiwaLaughSpec.crescentWidth * unit + unit * 0.03,
                 height: NaiwaLaughSpec.crescentThick * unit * 3 + unit * 0.03
             )
-            .offset(y: eyeH * 0.34)
-            .opacity(Double(close * close * close))
+            .offset(y: seamOffsetY)
+            .blur(radius: strongSeam ? 0 : unit * 0.004)
+            // Held close: original crisp seam (fades in early). Blink: softened
+            // seam that only appears near full closure so it barely registers
+            // as the eye sweeps past the low-close range.
+            .opacity(strongSeam
+                ? Double(min(close * 3, 1))
+                : Double(max(0, close - 0.55) / 0.45))
         }
         .frame(width: eyeW * 1.8, height: eyeH * 1.7)
     }
@@ -265,15 +495,17 @@ struct NaiwaReworkEyeView: View {
 // MARK: - Chin Shadow
 
 struct NaiwaChinShadowView: View {
+    @Environment(\.naiwaTheme) private var theme
     let unit: CGFloat
 
     var body: some View {
+        let tone = theme.palette.chinShadowTone
         Ellipse()
             .fill(
                 RadialGradient(
                     colors: [
-                        NaiwaFaceSpec.chinShadowTone.opacity(0.26),
-                        NaiwaFaceSpec.chinShadowTone.opacity(0.0)
+                        tone.opacity(0.26),
+                        tone.opacity(0.0)
                     ],
                     center: .center,
                     startRadius: 0,
@@ -288,9 +520,11 @@ struct NaiwaChinShadowView: View {
 // MARK: - Mouth
 
 struct NaiwaReworkMouthView: View {
+    @Environment(\.naiwaTheme) private var theme
     let unit: CGFloat
 
     var body: some View {
+        let palette = theme.palette
         let width = NaiwaFaceSpec.mouthWidth * unit
         let lift = NaiwaFaceSpec.mouthCornerLift * unit
         let halfThickness = NaiwaFaceSpec.mouthThickness * unit / 2
@@ -303,7 +537,7 @@ struct NaiwaReworkMouthView: View {
         ZStack(alignment: .topLeading) {
             lipTopCurve(width: width, cornerY: cornerY, lift: lift, rise: lipRise)
                 .stroke(
-                    NaiwaFaceSpec.muzzleGlow.opacity(0.50),
+                    palette.muzzleGlow.opacity(0.50),
                     style: StrokeStyle(lineWidth: unit * 0.014, lineCap: .round)
                 )
                 .offset(y: -unit * 0.006)
@@ -651,17 +885,19 @@ struct NaiwaCrescentShape: Shape {
 }
 
 struct NaiwaLaughEyeView: View {
+    @Environment(\.naiwaTheme) private var theme
     let unit: CGFloat
     let squeeze: Double
     let isLeft: Bool
 
     var body: some View {
+        let palette = theme.palette
         let mound = NaiwaLaughSpec.moundDiameter * unit
         let moundWidth = mound * NaiwaLaughSpec.moundWidthRatio
 
         ZStack {
             Ellipse()
-                .fill(Color(red: 0.55, green: 0.32, blue: 0.05).opacity(0.22))
+                .fill(palette.chinShadowTone.opacity(0.22))
                 .frame(width: moundWidth * 0.58, height: mound * 0.13)
                 .offset(y: mound * 0.52)
                 .blur(radius: unit * 0.012)
@@ -669,7 +905,7 @@ struct NaiwaLaughEyeView: View {
             Ellipse()
                 .trim(from: 0.06, to: 0.44)
                 .stroke(
-                    NaiwaLaughSpec.moundShadow.opacity(0.68),
+                    palette.moundShadow.opacity(0.68),
                     style: StrokeStyle(lineWidth: unit * 0.022, lineCap: .round)
                 )
                 .frame(width: moundWidth * 0.88, height: mound * 0.88)
@@ -679,8 +915,8 @@ struct NaiwaLaughEyeView: View {
                 .fill(
                     RadialGradient(
                         stops: [
-                            .init(color: NaiwaLaughSpec.moundCore.opacity(0.95), location: 0.00),
-                            .init(color: NaiwaLaughSpec.moundLight.opacity(0.55), location: 0.42),
+                            .init(color: palette.moundCore.opacity(0.95), location: 0.00),
+                            .init(color: palette.moundLight.opacity(0.55), location: 0.42),
                             .init(color: .clear, location: 1.0)
                         ],
                         center: UnitPoint(x: isLeft ? 0.44 : 0.56, y: 0.28),
@@ -744,34 +980,36 @@ struct NaiwaLaughMouthShape: Shape {
 }
 
 struct NaiwaLaughMouthView: View {
+    @Environment(\.naiwaTheme) private var theme
     let unit: CGFloat
     let jaw: Double
 
     var body: some View {
+        let palette = theme.palette
         let boxWidth = NaiwaLaughSpec.mouthTopHalfWidth * 2 * unit + unit * 0.14
         let boxHeight = (NaiwaLaughSpec.mouthMaxDepth + NaiwaLaughSpec.mouthTopSag) * unit + unit * 0.14
 
         ZStack {
             NaiwaLaughMouthShape(unit: unit, jaw: jaw)
-                .stroke(NaiwaLaughSpec.rimShadow.opacity(0.35), lineWidth: unit * 0.020)
+                .stroke(palette.rimShadow.opacity(0.35), lineWidth: unit * 0.020)
                 .blur(radius: unit * 0.016)
                 .offset(y: unit * 0.034)
                 .mask(bottomSidesMask)
 
             NaiwaLaughMouthShape(unit: unit, jaw: jaw)
-                .stroke(NaiwaLaughSpec.rimLight.opacity(0.65), lineWidth: unit * 0.016)
+                .stroke(palette.rimLight.opacity(0.65), lineWidth: unit * 0.016)
                 .blur(radius: unit * 0.008)
                 .offset(y: unit * 0.012)
                 .mask(bottomSidesMask)
 
             NaiwaLaughMouthShape(unit: unit, jaw: jaw)
-                .stroke(NaiwaLaughSpec.rimLight.opacity(0.55), lineWidth: unit * 0.016)
+                .stroke(palette.rimLight.opacity(0.55), lineWidth: unit * 0.016)
                 .blur(radius: unit * 0.010)
                 .offset(y: -unit * 0.024)
                 .mask(topMask)
 
             NaiwaLaughMouthShape(unit: unit, jaw: jaw)
-                .stroke(NaiwaLaughSpec.rimShadow.opacity(0.42), lineWidth: unit * 0.018)
+                .stroke(palette.rimShadow.opacity(0.42), lineWidth: unit * 0.018)
                 .blur(radius: unit * 0.012)
                 .offset(y: -unit * 0.008)
                 .mask(topMask)
@@ -905,11 +1143,11 @@ struct NaiwaLaughMouthView: View {
                         return (CGFloat(index) + localFraction) / CGFloat(arcSamples)
                     }
 
-                    let lowerFractions: [CGFloat] = [0.060, 0.940, 0.186, 0.814, 0.311, 0.689, 0.437, 0.563]
+                    let lowerFractions: [CGFloat] = [0.058, 0.942, 0.178, 0.822, 0.303, 0.697, 0.432, 0.568]
                     for fraction in lowerFractions {
                         let t = tForArcFraction(fraction)
                         let norm = abs(fraction - 0.5) * 2
-                        let lowerToothWidth = NaiwaLaughSpec.toothWidth * unit * 0.72 * (1 - 0.30 * norm)
+                        let lowerToothWidth = NaiwaLaughSpec.toothWidth * unit * 0.72 * (1 - 0.20 * norm)
                         let lowerToothHeight = NaiwaLaughSpec.toothHeight * unit * 0.62 * (1 - 0.28 * norm)
                         let (position, angle) = lowerEdge(t)
                         var toothContext = layer
@@ -936,20 +1174,39 @@ struct NaiwaLaughMouthView: View {
                             / CGFloat(teethCount - 1)
                         let norm = abs(t - 0.5) / ((span.upperBound - span.lowerBound) / 2)
                         let toothWidth = NaiwaLaughSpec.toothWidth * unit * 0.86 * (1 - 0.50 * norm)
-                        let toothHeight = upperBaseHeight * (1 - 0.56 * norm)
                         let (position, angle) = topEdge(t)
                         var toothContext = layer
                         toothContext.translateBy(x: position.x, y: position.y)
                         toothContext.rotate(by: Angle(radians: Double(angle)))
-                        toothContext.fill(
-                            Path(roundedRect: CGRect(
-                                x: -toothWidth / 2,
-                                y: -unit * 0.008,
-                                width: toothWidth,
-                                height: toothHeight
-                            ), cornerRadius: toothWidth * 0.28),
-                            with: toothColor(norm)
-                        )
+
+                        if index == 1 || index == 6 {
+                            let fangHeight = upperBaseHeight * (1 - 0.56 * norm) * 1.18
+                            let halfWidth = toothWidth * 0.62
+                            var fang = Path()
+                            fang.move(to: CGPoint(x: -halfWidth, y: -unit * 0.008))
+                            fang.addLine(to: CGPoint(x: halfWidth, y: -unit * 0.008))
+                            fang.addQuadCurve(
+                                to: CGPoint(x: halfWidth * 0.06, y: fangHeight),
+                                control: CGPoint(x: halfWidth * 0.85, y: fangHeight * 0.55)
+                            )
+                            fang.addQuadCurve(
+                                to: CGPoint(x: -halfWidth, y: -unit * 0.008),
+                                control: CGPoint(x: -halfWidth * 0.78, y: fangHeight * 0.55)
+                            )
+                            fang.closeSubpath()
+                            toothContext.fill(fang, with: toothColor(norm))
+                        } else {
+                            let toothHeight = upperBaseHeight * (1 - 0.56 * norm)
+                            toothContext.fill(
+                                Path(roundedRect: CGRect(
+                                    x: -toothWidth / 2,
+                                    y: -unit * 0.008,
+                                    width: toothWidth,
+                                    height: toothHeight
+                                ), cornerRadius: toothWidth * 0.28),
+                                with: toothColor(norm)
+                            )
+                        }
                     }
                 }
             }
@@ -988,8 +1245,15 @@ struct NaiwaLivingFaceView: View {
     var isLeftEyeClosed = false
     var isRightEyeClosed = false
     var isLaughing = false
+    var isSleeping = false
+    var isDrooling = false
+    var dizzyProgress: CGFloat = 0
+    var backgroundTheme: NaiwaBackgroundTheme = .yellow
+    var showBelly: Bool = true
 
     @State private var blink: CGFloat = 0
+    @State private var breatheScale: CGFloat = 1.0
+    @State private var wobblePhase: Double = 0
 
     var body: some View {
         GeometryReader { geometry in
@@ -1000,12 +1264,23 @@ struct NaiwaLivingFaceView: View {
             let cornersY = mouth.y - NaiwaLaughSpec.mouthCornersRaise * unit
             let boxHeight = (NaiwaLaughSpec.mouthMaxDepth + NaiwaLaughSpec.mouthTopSag) * unit + unit * 0.10
             let laughMouthCenterY = cornersY - unit * 0.02 + boxHeight / 2
-            let closeLeft = max(blink, isLeftEyeClosed ? 1 : 0)
-            let closeRight = max(blink, isRightEyeClosed ? 1 : 0)
+            let sleepClose: CGFloat = isSleeping ? 1 : 0
+            let closeLeft = max(blink, isLeftEyeClosed ? 1 : 0, sleepClose)
+            let closeRight = max(blink, isRightEyeClosed ? 1 : 0, sleepClose)
 
             ZStack {
+                // Static skin layer sitting behind everything that can wobble/scale.
+                // Fills the corners that get exposed when the wobble group rotates
+                // ± 2.5° during dizzy — same gradient as the moving skin, so the
+                // seam at the rotating edge is invisible.
                 NaiwaReworkSkinView()
-                NaiwaReworkBellyView()
+
+                Group {
+                    Group {
+                NaiwaReworkSkinView()
+                if showBelly {
+                    NaiwaReworkBellyView()
+                }
 
                 TimelineView(.animation(minimumInterval: 1.0 / 60.0, paused: !isLaughing)) { timeline in
                     let time = timeline.date.timeIntervalSinceReferenceDate
@@ -1018,11 +1293,18 @@ struct NaiwaLivingFaceView: View {
                                 .position(x: mouth.x, y: mouth.y + unit * 0.035)
                             NaiwaReworkMouthView(unit: unit)
                                 .position(x: mouth.x, y: mouth.y)
+                            NaiwaDroolView(unit: unit, isDrooling: isDrooling)
+                                .position(
+                                    x: mouth.x + NaiwaFaceSpec.mouthWidth * unit * 0.48,
+                                    y: mouth.y + unit * 0.028
+                                )
                             NaiwaReworkEyeView(
                                 pupilOffset: pupilOffset,
                                 unit: unit,
                                 closeAmount: closeLeft,
-                                isLeft: true
+                                isLeft: true,
+                                dizzyProgress: dizzyProgress,
+                                strongSeam: isLeftEyeClosed || isSleeping
                             )
                             .position(eyes.left)
                             .animation(
@@ -1033,7 +1315,9 @@ struct NaiwaLivingFaceView: View {
                                 pupilOffset: pupilOffset,
                                 unit: unit,
                                 closeAmount: closeRight,
-                                isLeft: false
+                                isLeft: false,
+                                dizzyProgress: dizzyProgress,
+                                strongSeam: isRightEyeClosed || isSleeping
                             )
                             .position(eyes.right)
                             .animation(
@@ -1060,22 +1344,87 @@ struct NaiwaLivingFaceView: View {
                     }
                     .animation(.spring(response: 0.30, dampingFraction: 0.72), value: isLaughing)
                 }
+                }
+                .scaleEffect(y: breatheScale, anchor: .bottom)
+
+                    NaiwaDizzyStarsView(unit: unit, dizzyProgress: dizzyProgress)
+                        .position(x: geometry.size.width * 0.5, y: geometry.size.height * 0.17)
+                        .opacity(isLaughing ? 0 : 1)
+                        .animation(.easeInOut(duration: 0.35), value: isLaughing)
+                        .allowsHitTesting(false)
+                }
+                .rotationEffect(
+                    .degrees(wobblePhase * 2.5 * Double(dizzyProgress)),
+                    anchor: .center
+                )
+
+                NaiwaSleepZeesView(unit: unit, isSleeping: isSleeping)
+                    .position(
+                        x: geometry.size.width * 0.62,
+                        y: geometry.size.height * 0.19
+                    )
+                    .opacity(isLaughing ? 0 : 1)
+                    .animation(.easeInOut(duration: 0.35), value: isLaughing)
+                    .allowsHitTesting(false)
             }
         }
         .ignoresSafeArea()
+        .environment(\.naiwaTheme, backgroundTheme)
         .task { await autoBlinkLoop() }
+        .task(id: isSleeping) { await breatheLoop() }
+        .task(id: dizzyProgress > 0.3) { await wobbleLoop() }
+    }
+
+    private func wobbleLoop() async {
+        guard dizzyProgress > 0.3 else {
+            withAnimation(.easeOut(duration: 0.5)) {
+                wobblePhase = 0
+            }
+            return
+        }
+        while !Task.isCancelled {
+            withAnimation(.easeInOut(duration: 1.25)) {
+                wobblePhase = 1
+            }
+            try? await Task.sleep(nanoseconds: 1_250_000_000)
+            guard !Task.isCancelled else { break }
+            withAnimation(.easeInOut(duration: 1.25)) {
+                wobblePhase = -1
+            }
+            try? await Task.sleep(nanoseconds: 1_250_000_000)
+        }
+    }
+
+    private func breatheLoop() async {
+        guard isSleeping else {
+            withAnimation(.easeOut(duration: 0.6)) {
+                breatheScale = 1.0
+            }
+            return
+        }
+        while !Task.isCancelled {
+            withAnimation(.easeInOut(duration: 2.0)) {
+                breatheScale = 1.015
+            }
+            try? await Task.sleep(nanoseconds: 2_000_000_000)
+            guard !Task.isCancelled else { break }
+            withAnimation(.easeInOut(duration: 2.0)) {
+                breatheScale = 1.0
+            }
+            try? await Task.sleep(nanoseconds: 2_000_000_000)
+        }
     }
 
     private func autoBlinkLoop() async {
         while !Task.isCancelled {
-            let wait = Double.random(in: 2.2...5.8)
+            let wait = Double.random(in: 5.0...10.0)
             try? await Task.sleep(nanoseconds: UInt64(wait * 1_000_000_000))
             guard !Task.isCancelled else { return }
-            guard !isLaughing, !isLeftEyeClosed, !isRightEyeClosed else { continue }
+            guard !isLaughing, !isSleeping, !isLeftEyeClosed, !isRightEyeClosed else { continue }
             await performBlink()
-            if Double.random(in: 0...1) < 0.18 {
+            if Double.random(in: 0...1) < 0.10 {
                 try? await Task.sleep(nanoseconds: 160_000_000)
-                guard !isLaughing else { continue }
+                guard !isLaughing, !isSleeping else { continue }
                 await performBlink()
             }
         }
@@ -1086,6 +1435,151 @@ struct NaiwaLivingFaceView: View {
         try? await Task.sleep(nanoseconds: 120_000_000)
         withAnimation(.easeOut(duration: 0.17)) { blink = 0 }
         try? await Task.sleep(nanoseconds: 180_000_000)
+    }
+}
+
+// MARK: - Sleep Zees
+
+struct NaiwaSleepZeesView: View {
+    let unit: CGFloat
+    var isSleeping: Bool
+
+    private static let period: Double = 3.2
+    private static let count = 3
+
+    var body: some View {
+        TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: !isSleeping)) { timeline in
+            let now = timeline.date.timeIntervalSinceReferenceDate
+
+            ZStack {
+                ForEach(0..<Self.count, id: \.self) { index in
+                    let stagger = Double(index) * (Self.period / Double(Self.count))
+                    let raw = (now + stagger).truncatingRemainder(dividingBy: Self.period)
+                    let phase = raw / Self.period
+                    let phaseCG = CGFloat(phase)
+
+                    let riseY = -phaseCG * unit * 0.28
+                    let driftX = CGFloat(sin(phase * .pi * 2 + Double(index) * 0.7)) * unit * 0.028
+                    let scale = 0.55 + phaseCG * 0.75
+                    let fadeIn = min(1, phase * 5)
+                    let fadeOut = min(1, (1 - phase) * 3)
+                    let opacity = fadeIn * fadeOut
+
+                    Text("Z")
+                        .font(.system(size: unit * 0.11, weight: .black, design: .rounded))
+                        .foregroundStyle(
+                            LinearGradient(
+                                colors: [
+                                    Color.black.opacity(0.72),
+                                    Color(red: 0.20, green: 0.14, blue: 0.06).opacity(0.55)
+                                ],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        )
+                        .shadow(color: .white.opacity(0.55), radius: 0.5, x: 0, y: 0.5)
+                        .scaleEffect(scale)
+                        .offset(x: driftX, y: riseY)
+                        .opacity(opacity)
+                }
+            }
+        }
+        .opacity(isSleeping ? 1 : 0)
+        .animation(.easeInOut(duration: 0.5), value: isSleeping)
+    }
+}
+
+// MARK: - Sleep Drool
+
+struct DroolTeardropShape: Shape {
+    func path(in rect: CGRect) -> Path {
+        Path { path in
+            let w = rect.width
+            let h = rect.height
+            let cx = rect.midX
+            let bulbCenterY = h * 0.60
+            let bulbRadius = min(w / 2, h * 0.38)
+
+            path.move(to: CGPoint(x: cx, y: 0))
+            path.addQuadCurve(
+                to: CGPoint(x: cx + bulbRadius, y: bulbCenterY),
+                control: CGPoint(x: cx + w * 0.44, y: h * 0.34)
+            )
+            path.addArc(
+                center: CGPoint(x: cx, y: bulbCenterY),
+                radius: bulbRadius,
+                startAngle: .degrees(0),
+                endAngle: .degrees(180),
+                clockwise: false
+            )
+            path.addQuadCurve(
+                to: CGPoint(x: cx, y: 0),
+                control: CGPoint(x: cx - w * 0.44, y: h * 0.34)
+            )
+            path.closeSubpath()
+        }
+    }
+}
+
+struct NaiwaDroolView: View {
+    let unit: CGFloat
+    var isDrooling: Bool
+
+    private static let period: Double = 5.0
+
+    var body: some View {
+        TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: !isDrooling)) { timeline in
+            let now = timeline.date.timeIntervalSinceReferenceDate
+            let phase = (now.truncatingRemainder(dividingBy: Self.period)) / Self.period
+
+            let appear = min(1.0, phase / 0.15)
+            let sag = max(0.0, min(1.0, (phase - 0.65) / 0.20))
+            let fade = 1.0 - max(0.0, (phase - 0.85) / 0.15)
+
+            let bob = CGFloat(sin(phase * .pi * 6)) * unit * 0.0012
+            let sagDrift = CGFloat(sag) * unit * 0.010 + bob
+            let stretch = 1 + CGFloat(sag) * 0.55
+            let opacity = CGFloat(appear) * CGFloat(fade)
+
+            let width = unit * 0.028
+            let baseHeight = unit * 0.048
+            let height = baseHeight * stretch
+            // Keep the drop's tip anchored to the mouth corner while the bulb
+            // sags downward — .position centers the frame, so compensate by
+            // shifting down by half of the height gained via stretch.
+            let anchorFix = (height - baseHeight) / 2
+
+            ZStack {
+                DroolTeardropShape()
+                    .fill(
+                        LinearGradient(
+                            stops: [
+                                .init(color: Color(red: 0.87, green: 0.95, blue: 1.0).opacity(0.70), location: 0.00),
+                                .init(color: Color(red: 0.60, green: 0.80, blue: 0.97).opacity(0.78), location: 0.55),
+                                .init(color: Color(red: 0.42, green: 0.66, blue: 0.90).opacity(0.90), location: 1.00)
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+                    .overlay {
+                        DroolTeardropShape()
+                            .stroke(Color.white.opacity(0.55), lineWidth: 0.6)
+                            .blur(radius: 0.3)
+                    }
+                    .overlay {
+                        Ellipse()
+                            .fill(Color.white.opacity(0.72))
+                            .frame(width: width * 0.28, height: height * 0.11)
+                            .offset(x: -width * 0.16, y: height * 0.14)
+                    }
+            }
+            .frame(width: width, height: height)
+            .offset(y: sagDrift + anchorFix)
+            .opacity(opacity)
+        }
+        .opacity(isDrooling ? 1 : 0)
+        .animation(.easeInOut(duration: 0.5), value: isDrooling)
     }
 }
 
@@ -1103,4 +1597,85 @@ struct NaiwaLivingFaceView: View {
 
 #Preview("Laughing") {
     NaiwaLivingFaceView(isLaughing: true)
+}
+
+#Preview("Sleeping") {
+    NaiwaLivingFaceView(isSleeping: true)
+}
+
+#Preview("Sleeping + Drooling") {
+    NaiwaLivingFaceView(isSleeping: true, isDrooling: true)
+}
+
+// MARK: - Dizzy Overlay
+
+struct DizzySpiralShape: Shape {
+    var turns: Double = 2.6
+
+    func path(in rect: CGRect) -> Path {
+        Path { path in
+            let center = CGPoint(x: rect.midX, y: rect.midY)
+            let maxR = min(rect.width, rect.height) / 2
+            let steps = 140
+            let coefficient = maxR / (turns * 2 * .pi)
+
+            for i in 0...steps {
+                let t = Double(i) / Double(steps)
+                let theta = t * turns * 2 * .pi
+                let r = coefficient * theta
+                let x = center.x + CGFloat(cos(theta)) * r
+                let y = center.y + CGFloat(sin(theta)) * r
+                if i == 0 {
+                    path.move(to: CGPoint(x: x, y: y))
+                } else {
+                    path.addLine(to: CGPoint(x: x, y: y))
+                }
+            }
+        }
+    }
+}
+
+struct NaiwaDizzyStarsView: View {
+    let unit: CGFloat
+    var dizzyProgress: CGFloat
+
+    private static let count = 5
+
+    var body: some View {
+        TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: dizzyProgress < 0.02)) { timeline in
+            let now = timeline.date.timeIntervalSinceReferenceDate
+            let angularVel = 2 * .pi / 3.2
+
+            ZStack {
+                ForEach(0..<Self.count, id: \.self) { index in
+                    let phase = Double(index) / Double(Self.count)
+                    let angle = now * angularVel + phase * 2 * .pi
+                    let radiusX = unit * 0.30
+                    let radiusY = unit * 0.11
+                    let x = CGFloat(cos(angle)) * radiusX
+                    let y = CGFloat(sin(angle)) * radiusY - unit * 0.02
+
+                    let scaleBase: CGFloat = index.isMultiple(of: 2) ? 1.0 : 0.72
+                    let scale = scaleBase * (0.82 + 0.18 * CGFloat(sin(angle * 2 + Double(index))))
+
+                    let starColor: Color = index.isMultiple(of: 2)
+                        ? Color(red: 1.00, green: 0.86, blue: 0.20)
+                        : Color(red: 1.00, green: 0.98, blue: 0.86)
+
+                    Image(systemName: "star.fill")
+                        .font(.system(size: unit * 0.046))
+                        .foregroundStyle(starColor)
+                        .shadow(color: .black.opacity(0.20), radius: 0.6, x: 0, y: 0.4)
+                        .scaleEffect(scale)
+                        .offset(x: x, y: y)
+                }
+            }
+            .frame(width: unit * 0.75, height: unit * 0.32)
+            .opacity(Double(dizzyProgress))
+        }
+    }
+}
+
+#Preview("Dizzy") {
+    NaiwaLivingFaceView(dizzyProgress: 1)
 }
