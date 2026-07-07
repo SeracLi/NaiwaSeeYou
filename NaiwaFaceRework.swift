@@ -38,6 +38,11 @@ enum NaiwaFaceSpec {
     static let skinLowerMid = Color(red: 0.984, green: 0.660, blue: 0.176)
     static let skinChest = Color(red: 0.984, green: 0.631, blue: 0.145)
 
+    /// 八字倾斜角度（度）。左眼顺时针、右眼逆时针，眼顶朝内，微微即可
+    static let eyeTiltDegrees: Double = 18.0
+    /// 闭眼黑线的净倾斜角（度）。眼睛整体倾斜时，黑线反向抵消到这个更温和的角度
+    static let seamTiltDegrees: Double = 7.0
+
     static let irisBright = Color(red: 0.510, green: 0.816, blue: 0.561)
     static let irisMid = Color(red: 0.376, green: 0.698, blue: 0.384)
     static let irisDeep = Color(red: 0.286, green: 0.588, blue: 0.259)
@@ -95,6 +100,13 @@ enum NaiwaFaceSpec {
         case leftEye
         case rightEye
         case mouth
+        // 躯干四象限（嘴以下、肚皮以上）——对应四段语音
+        case speakTopLeft      // 音频 1
+        case speakBottomLeft   // 音频 2
+        case speakTopRight     // 音频 3
+        case speakBottomRight  // 音频 4
+        // 底部长方形（肚皮位置）——大笑
+        case belly
     }
 
     static func hitRegion(at point: CGPoint, in size: CGSize) -> HitRegion? {
@@ -121,6 +133,25 @@ enum NaiwaFaceSpec {
             height: (mouthCornerLift + upperLipRise) * u + 24
         )
         if frame(mouthCenter(in: size), mouthSize).contains(point) { return .mouth }
+
+        // 底部长方形（与肚皮顶点对齐，全宽）——大笑，无关是否显示肚皮
+        let bellyTopY = size.height - bellyApexAboveBottom * size.width
+        if point.y >= bellyTopY { return .belly }
+
+        // 躯干说话区：嘴稍下方 → 肚皮顶点，切成左右×上下四象限
+        let bodyTop = mouthCenter(in: size).y + u * 0.10
+        if point.y >= bodyTop && point.y < bellyTopY {
+            let midY = (bodyTop + bellyTopY) / 2
+            let isLeft = point.x < size.width / 2
+            let isUpper = point.y < midY
+            switch (isLeft, isUpper) {
+            case (true, true):   return .speakTopLeft
+            case (true, false):  return .speakBottomLeft
+            case (false, true):  return .speakTopRight
+            case (false, false): return .speakBottomRight
+            }
+        }
+
         return nil
     }
 }
@@ -254,6 +285,9 @@ extension EnvironmentValues {
 
 struct NaiwaReworkSkinView: View {
     @Environment(\.naiwaTheme) private var theme
+    /// 渐变起点在屏高中的位置（0 = 屏顶）。剪影模式传入轮廓顶点高度，
+    /// 亮色从头顶开始向下过渡，顶点以上钳制为最亮色。
+    var topAnchor: CGFloat = 0
 
     var body: some View {
         GeometryReader { geo in
@@ -269,13 +303,13 @@ struct NaiwaReworkSkinView: View {
                         .init(color: palette.skinChest, location: 0.80),
                         .init(color: palette.skinChest, location: 1.00)
                     ],
-                    startPoint: .top,
+                    startPoint: UnitPoint(x: 0.5, y: Double(topAnchor)),
                     endPoint: .bottom
                 )
 
                 RadialGradient(
                     colors: [Color.white.opacity(0.10), .clear],
-                    center: UnitPoint(x: 0.5, y: 0.10),
+                    center: UnitPoint(x: 0.5, y: 0.10 + Double(topAnchor) * 0.9),
                     startRadius: 0,
                     endRadius: w * 0.7
                 )
@@ -350,6 +384,7 @@ struct NaiwaReworkEyeView: View {
     /// A held close (tap-to-close / sleep) shows the original crisp seam; an
     /// automatic blink uses a softened, later-fading seam so it doesn't flash.
     var strongSeam: Bool = false
+    var tilted: Bool = false
 
     var body: some View {
         let palette = theme.palette
@@ -487,8 +522,14 @@ struct NaiwaReworkEyeView: View {
             .opacity(strongSeam
                 ? Double(min(close * 3, 1))
                 : Double(max(0, close - 0.55) / 0.45))
+            // 反向旋转抵消容器倾斜：眼睛整体转 eyeTiltDegrees，这里回转，
+            // 让黑线净倾斜停在更温和的 seamTiltDegrees，闭眼更好看。
+            .rotationEffect(.degrees(
+                tilted ? Double(isLeft ? 1 : -1) * (NaiwaFaceSpec.seamTiltDegrees - NaiwaFaceSpec.eyeTiltDegrees) : 0
+            ))
         }
         .frame(width: eyeW * 1.8, height: eyeH * 1.7)
+        .rotationEffect(.degrees(tilted ? (isLeft ? 1 : -1) * NaiwaFaceSpec.eyeTiltDegrees : 0))
     }
 }
 
@@ -667,6 +708,79 @@ struct NaiwaReworkMouthView: View {
             endPoint: .trailing
         )
         .frame(width: width, height: height)
+    }
+}
+
+// MARK: - Speaking Mouth
+
+/// 说话口型层：读取 SpeechController 的实时开合值，局部刷新（不拖累整脸重绘）。
+struct NaiwaSpeakLayer: View {
+    let speech: SpeechController
+    let unit: CGFloat
+
+    var body: some View {
+        NaiwaSpeakMouthView(unit: unit, openness: speech.openness)
+            .opacity(speech.isSpeaking ? 1 : 0)
+            .animation(.easeInOut(duration: 0.18), value: speech.isSpeaking)
+    }
+}
+
+/// 从微笑口缝“张开”的小口腔：高度随 openness 变化，配舌头与上齿暗示。
+struct NaiwaSpeakMouthView: View {
+    @Environment(\.naiwaTheme) private var theme
+    let unit: CGFloat
+    /// 0 = 闭合（贴合微笑）, 1 = 张到最大
+    var openness: CGFloat
+
+    var body: some View {
+        let o = min(max(openness, 0), 1)
+        let width = NaiwaFaceSpec.mouthWidth * unit * (0.58 + 0.06 * o)
+        let minH = unit * 0.008
+        let maxH = unit * 0.115
+        let height = minH + (maxH - minH) * o
+        // 嘴主要向下张开，所以随开合把中心稍微下移
+        let dropY = height * 0.28
+
+        ZStack {
+            // 口腔
+            Ellipse()
+                .fill(
+                    LinearGradient(
+                        stops: [
+                            .init(color: NaiwaLaughSpec.cavityBlack, location: 0.00),
+                            .init(color: NaiwaLaughSpec.cavityMid, location: 0.55),
+                            .init(color: NaiwaLaughSpec.cavityBottomRed, location: 1.00)
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+                .frame(width: width, height: height)
+
+            // 舌头：张够大才露出，贴在底部
+            Ellipse()
+                .fill(NaiwaLaughSpec.tongue)
+                .frame(width: width * 0.62, height: height * 0.42)
+                .offset(y: height * 0.24)
+                .opacity(Double(max(0, o - 0.35) / 0.65))
+                .blur(radius: unit * 0.002)
+
+            // 上齿暗示：顶部一条白色细带
+            Capsule(style: .continuous)
+                .fill(NaiwaLaughSpec.toothWhite)
+                .frame(width: width * 0.72, height: max(unit * 0.010, height * 0.14))
+                .offset(y: -height * 0.40)
+                .opacity(Double(min(o * 1.4, 1)))
+
+            // 上唇高光，让张口边缘更柔和
+            Ellipse()
+                .strokeBorder(theme.palette.muzzleGlow.opacity(0.35), lineWidth: unit * 0.008)
+                .frame(width: width, height: height)
+                .blur(radius: unit * 0.006)
+        }
+        .clipShape(Ellipse())
+        .frame(width: width, height: height)
+        .offset(y: dropY)
     }
 }
 
@@ -889,6 +1003,7 @@ struct NaiwaLaughEyeView: View {
     let unit: CGFloat
     let squeeze: Double
     let isLeft: Bool
+    var tilted: Bool = false
 
     var body: some View {
         let palette = theme.palette
@@ -939,6 +1054,7 @@ struct NaiwaLaughEyeView: View {
                 )
         }
         .frame(width: mound * 1.25, height: mound * 1.25)
+        .rotationEffect(.degrees(tilted ? (isLeft ? 1 : -1) * NaiwaFaceSpec.eyeTiltDegrees : 0))
     }
 }
 
@@ -1240,6 +1356,377 @@ struct NaiwaLaughMouthView: View {
     }
 }
 
+// MARK: - Silhouette（角色剪影系统：黑色蒙版 + 轮廓镂空 + 轮廓光）
+
+enum NaiwaSilhouette: String, CaseIterable, Identifiable {
+    case block  // 奶块：整块无剪影
+    case frog   // 奶蛙：头部轮廓
+    case egg    // 奶蛋：蛋形轮廓
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .block: return "奶块"
+        case .frog:  return "奶蛙"
+        case .egg:   return "奶蛋"
+        }
+    }
+
+    /// 轮廓点表（nil = 无剪影）
+    var profile: [(dy: CGFloat, halfWidth: CGFloat)]? {
+        switch self {
+        case .block: return nil
+        case .frog:  return NaiwaSilhouetteSpec.frogProfile
+        case .egg:   return NaiwaSilhouetteSpec.eggProfile
+        }
+    }
+
+    /// 轮廓顶点相对眼睛中线的偏移（供背景渐变锚定）
+    var apexDy: CGFloat? { profile?.first?.dy }
+}
+
+enum NaiwaSilhouetteSpec {
+    static let scale: CGFloat = 1.0
+
+    /// 点表约定：首行为顶点（halfWidth = 0）；首尾之外的行自上而下；
+    /// 末行 halfWidth ≈ 0 → 底部圆顶闭合（奶蛋），否则向屏幕下方溢出（奶蛙）。
+    /// dy = 相对眼睛中线的纵向偏移，halfWidth = 半宽，单位均为屏宽。
+
+    /// 奶蛙头部（眼距标定 0.313 图宽 ↔ 0.409 屏宽）
+    static let frogProfile: [(dy: CGFloat, halfWidth: CGFloat)] = [
+        (-0.238, 0.000),   // 头顶（圆顶由代码生成，故删去原 -0.204 行）
+        (-0.157, 0.237),
+        (-0.111, 0.282),
+        (-0.038, 0.320),
+        ( 0.036, 0.339),
+        ( 0.110, 0.354),
+        ( 0.183, 0.370),
+        ( 0.275, 0.397),
+        ( 0.367, 0.438),
+        ( 0.460, 0.496),
+        ( 0.552, 0.568),
+        ( 0.616, 0.640),
+        ( 0.950, 0.900)    // 溢出屏幕
+    ]
+
+    /// 奶蛋（眼距标定 0.253 图宽 ↔ 0.409 屏宽）。
+    /// 上半沿用原始测量点；下半与奶蛙一致向屏幕外溢出，不做底部遮罩。
+    static let eggProfile: [(dy: CGFloat, halfWidth: CGFloat)] = [
+        (-0.273, 0.000),   // 蛋顶
+        (-0.123, 0.357),
+        (-0.007, 0.458),
+        ( 0.110, 0.535),
+        ( 0.227, 0.592),
+        ( 0.343, 0.635),
+        ( 0.460, 0.666),
+        ( 0.576, 0.684),   // 近最宽处
+        ( 0.950, 0.900)    // 下身溢出屏幕（与奶蛙一致，无底部遮罩）
+    ]
+}
+
+/// 通用轮廓形状：顶点圆顶（三次曲线，顶部切线水平、曲率连续）
+/// + 侧面中点平滑 + 底部圆顶或溢出
+struct NaiwaProfileOutlineShape: Shape {
+    let profile: [(dy: CGFloat, halfWidth: CGFloat)]
+
+    func path(in rect: CGRect) -> Path {
+        let w = rect.width
+        let cx = rect.midX
+        let eyeY = rect.height * NaiwaFaceSpec.eyeLineHeightFraction
+        let s = NaiwaSilhouetteSpec.scale
+        let apexDy = profile[0].dy
+
+        func pt(_ e: (dy: CGFloat, halfWidth: CGFloat), _ mirrored: Bool) -> CGPoint {
+            CGPoint(x: cx + e.halfWidth * w * s * (mirrored ? -1 : 1),
+                    y: eyeY + (apexDy + (e.dy - apexDy) * s) * w)
+        }
+
+        let closesAtBottom = profile.last!.halfWidth < 0.01
+        // 侧面点集：去掉顶点，若底部闭合再去掉底点
+        let sideRows = closesAtBottom
+            ? Array(profile[1..<(profile.count - 1)])
+            : Array(profile.dropFirst())
+
+        let apex = pt(profile[0], false)
+        let topShoulderL = pt(sideRows[0], true)
+        let topShoulderR = pt(sideRows[0], false)
+        // 圆顶控制点：令曲线最高点恰好触及顶点
+        // 三次曲线中点 y = (yL + 3yc1 + 3yc2 + yR) / 8
+        let topCtrlY = (8 * apex.y - 2 * topShoulderL.y) / 6
+        let topCtrlDX = sideRows[0].halfWidth * w * s * 0.42
+
+        var p = Path()
+        // 左侧自下而上
+        let leftPts = sideRows.reversed().map { pt($0, true) }
+        p.move(to: leftPts[0])
+        for i in 1..<leftPts.count - 1 {
+            let mid = CGPoint(x: (leftPts[i].x + leftPts[i + 1].x) / 2,
+                              y: (leftPts[i].y + leftPts[i + 1].y) / 2)
+            p.addQuadCurve(to: mid, control: leftPts[i])
+        }
+        p.addLine(to: topShoulderL)
+
+        // 顶部圆顶
+        p.addCurve(to: topShoulderR,
+                   control1: CGPoint(x: cx - topCtrlDX, y: topCtrlY),
+                   control2: CGPoint(x: cx + topCtrlDX, y: topCtrlY))
+
+        // 右侧自上而下
+        let rightPts = sideRows.map { pt($0, false) }
+        for i in 1..<rightPts.count - 1 {
+            let mid = CGPoint(x: (rightPts[i].x + rightPts[i + 1].x) / 2,
+                              y: (rightPts[i].y + rightPts[i + 1].y) / 2)
+            p.addQuadCurve(to: mid, control: rightPts[i])
+        }
+        p.addLine(to: rightPts[rightPts.count - 1])
+
+        if closesAtBottom {
+            // 底部圆顶闭合
+            let bottomApex = pt(profile[profile.count - 1], false)
+            let botShoulder = sideRows[sideRows.count - 1]
+            let botCtrlY = (8 * bottomApex.y - 2 * pt(botShoulder, false).y) / 6
+            let botCtrlDX = botShoulder.halfWidth * w * s * 0.42
+            p.addCurve(to: leftPts[0],
+                       control1: CGPoint(x: cx + botCtrlDX, y: botCtrlY),
+                       control2: CGPoint(x: cx - botCtrlDX, y: botCtrlY))
+        } else {
+            // 沿屏幕外溢出闭合
+            let overflow = rect.maxY + w * 0.2
+            p.addLine(to: CGPoint(x: rightPts[rightPts.count - 1].x, y: overflow))
+            p.addLine(to: CGPoint(x: leftPts[0].x, y: overflow))
+        }
+        p.closeSubpath()
+        return p
+    }
+}
+
+/// 黑色蒙版：全屏挖掉轮廓
+struct NaiwaSilhouetteCutoutShape: Shape {
+    let style: NaiwaSilhouette
+
+    func path(in rect: CGRect) -> Path {
+        var p = Path()
+        p.addRect(rect.insetBy(dx: -200, dy: -200))
+        if let profile = style.profile {
+            p.addPath(NaiwaProfileOutlineShape(profile: profile).path(in: rect))
+        }
+        return p
+    }
+}
+
+/// 蒙版 + 轮廓光（顶部受光的柔和亮边，给剪影 3D 感）
+enum NaiwaSceneBackground: String, CaseIterable, Identifiable {
+    case white, black, gray, blue, pink, mint
+
+    var id: String { rawValue }
+
+    var color: Color {
+        switch self {
+        case .white: return Color(red: 1.00, green: 1.00, blue: 1.00)
+        case .black: return Color(red: 0.00, green: 0.00, blue: 0.00)
+        case .gray:  return Color(red: 0.90, green: 0.90, blue: 0.92)
+        case .blue:  return Color(red: 0.80, green: 0.90, blue: 1.00)
+        case .pink:  return Color(red: 1.00, green: 0.86, blue: 0.90)
+        case .mint:  return Color(red: 0.83, green: 0.95, blue: 0.87)
+        }
+    }
+
+    var displayName: String {
+        switch self {
+        case .white: return "白"
+        case .black: return "黑"
+        case .gray:  return "灰"
+        case .blue:  return "蓝"
+        case .pink:  return "粉"
+        case .mint:  return "绿"
+        }
+    }
+}
+
+struct NaiwaSilhouetteMaskView: View {
+    let style: NaiwaSilhouette
+    var backgroundColor: Color = .white
+
+    var body: some View {
+        if let profile = style.profile {
+            GeometryReader { geo in
+                let w = geo.size.width
+                ZStack {
+                    NaiwaSilhouetteCutoutShape(style: style)
+                        .fill(backgroundColor, style: FillStyle(eoFill: true))
+
+                    // 轮廓内侧的受光亮边：上强下弱，柔和渐隐
+                    NaiwaProfileOutlineShape(profile: profile)
+                        .stroke(Color(red: 1.0, green: 0.94, blue: 0.62).opacity(0.55),
+                                lineWidth: w * 0.022)
+                        .blur(radius: w * 0.018)
+                        .clipShape(NaiwaProfileOutlineShape(profile: profile))
+                        .mask(
+                            LinearGradient(
+                                stops: [
+                                    .init(color: .white,               location: 0.00),
+                                    .init(color: .white.opacity(0.55), location: 0.35),
+                                    .init(color: .white.opacity(0.15), location: 0.70),
+                                    .init(color: .clear,               location: 1.00)
+                                ],
+                                startPoint: .top, endPoint: .bottom
+                            )
+                        )
+                }
+            }
+            .ignoresSafeArea()
+            .allowsHitTesting(false)
+        }
+    }
+}
+
+// MARK: - Hairstyle（发型：戴在头顶的装饰层，压在最上层）
+
+enum NaiwaHairstyle: String, CaseIterable, Identifiable {
+    case none, ahoge, mohawk, bun, bow
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .none:   return "无"
+        case .ahoge:  return "呆毛"
+        case .mohawk: return "莫西干"
+        case .bun:    return "丸子头"
+        case .bow:    return "蝴蝶结"
+        }
+    }
+}
+
+struct NaiwaHairstyleView: View {
+    let style: NaiwaHairstyle
+    /// 头顶相对眼线的纵向偏移（屏宽单位），发型据此锚定在头顶
+    let apexDy: CGFloat
+
+    var body: some View {
+        GeometryReader { geo in
+            let w = geo.size.width
+            let cx = w / 2
+            let topY = geo.size.height * NaiwaFaceSpec.eyeLineHeightFraction + apexDy * w
+            ZStack {
+                switch style {
+                case .none:   EmptyView()
+                case .ahoge:  ahoge(w, cx, topY)
+                case .mohawk: mohawk(w, cx, topY)
+                case .bun:    bun(w, cx, topY)
+                case .bow:    bow(w, cx, topY)
+                }
+            }
+        }
+        .ignoresSafeArea()
+        .allowsHitTesting(false)
+    }
+
+    // 呆毛：一根从头顶伸出、俏皮卷翘的细毛
+    private func ahoge(_ w: CGFloat, _ cx: CGFloat, _ topY: CGFloat) -> some View {
+        Path { p in
+            p.move(to: CGPoint(x: cx - w * 0.015, y: topY + w * 0.03))
+            p.addQuadCurve(
+                to: CGPoint(x: cx + w * 0.02, y: topY - w * 0.10),
+                control: CGPoint(x: cx - w * 0.10, y: topY - w * 0.055)
+            )
+            p.addQuadCurve(
+                to: CGPoint(x: cx + w * 0.105, y: topY - w * 0.185),
+                control: CGPoint(x: cx + w * 0.115, y: topY - w * 0.10)
+            )
+        }
+        .stroke(
+            LinearGradient(
+                colors: [Color(red: 0.30, green: 0.18, blue: 0.10),
+                         Color(red: 0.46, green: 0.29, blue: 0.16)],
+                startPoint: .bottom, endPoint: .top
+            ),
+            style: StrokeStyle(lineWidth: w * 0.022, lineCap: .round)
+        )
+    }
+
+    // 莫西干：一排竖立尖刺，中间最高，品红→紫撞色
+    private func mohawk(_ w: CGFloat, _ cx: CGFloat, _ topY: CGFloat) -> some View {
+        let spikes = 5
+        let spread = w * 0.22
+        let baseY = topY + w * 0.02
+        let left = cx - spread / 2
+        let step = spread / CGFloat(spikes)
+        return Path { p in
+            p.move(to: CGPoint(x: left, y: baseY))
+            for i in 0..<spikes {
+                let x0 = left + CGFloat(i) * step
+                let mid = x0 + step / 2
+                let norm = 1 - abs(CGFloat(i) - CGFloat(spikes - 1) / 2) / (CGFloat(spikes - 1) / 2)
+                let tipH = w * (0.10 + 0.13 * norm)
+                p.addLine(to: CGPoint(x: mid, y: baseY - tipH))
+                p.addLine(to: CGPoint(x: x0 + step, y: baseY))
+            }
+            p.closeSubpath()
+        }
+        .fill(
+            LinearGradient(
+                colors: [Color(red: 0.97, green: 0.22, blue: 0.45),
+                         Color(red: 0.56, green: 0.25, blue: 0.87)],
+                startPoint: .leading, endPoint: .trailing
+            )
+        )
+    }
+
+    // 丸子头：头顶一个发髻 + 粉色发带
+    private func bun(_ w: CGFloat, _ cx: CGFloat, _ topY: CGFloat) -> some View {
+        ZStack {
+            Circle()
+                .fill(
+                    RadialGradient(
+                        colors: [Color(red: 0.50, green: 0.32, blue: 0.18),
+                                 Color(red: 0.34, green: 0.20, blue: 0.10)],
+                        center: UnitPoint(x: 0.4, y: 0.35),
+                        startRadius: 0, endRadius: w * 0.10
+                    )
+                )
+                .frame(width: w * 0.17, height: w * 0.17)
+                .position(x: cx, y: topY - w * 0.055)
+            Capsule()
+                .fill(Color(red: 1.0, green: 0.46, blue: 0.62))
+                .frame(width: w * 0.14, height: w * 0.045)
+                .position(x: cx, y: topY + w * 0.012)
+        }
+    }
+
+    // 蝴蝶结：头顶正上方一个粉红蝴蝶结
+    private func bow(_ w: CGFloat, _ cx: CGFloat, _ topY: CGFloat) -> some View {
+        let by = topY - w * 0.01
+        let petal = w * 0.075
+        let grad = LinearGradient(
+            colors: [Color(red: 1.0, green: 0.50, blue: 0.66),
+                     Color(red: 0.96, green: 0.30, blue: 0.50)],
+            startPoint: .top, endPoint: .bottom
+        )
+        return ZStack {
+            Path { p in
+                p.move(to: CGPoint(x: cx, y: by))
+                p.addLine(to: CGPoint(x: cx - petal * 1.4, y: by - petal))
+                p.addLine(to: CGPoint(x: cx - petal * 1.4, y: by + petal))
+                p.closeSubpath()
+            }.fill(grad)
+            Path { p in
+                p.move(to: CGPoint(x: cx, y: by))
+                p.addLine(to: CGPoint(x: cx + petal * 1.4, y: by - petal))
+                p.addLine(to: CGPoint(x: cx + petal * 1.4, y: by + petal))
+                p.closeSubpath()
+            }.fill(grad)
+            RoundedRectangle(cornerRadius: w * 0.012)
+                .fill(Color(red: 0.90, green: 0.24, blue: 0.44))
+                .frame(width: w * 0.03, height: w * 0.05)
+                .position(x: cx, y: by)
+        }
+    }
+}
+
+// MARK: - Living Face
+
 struct NaiwaLivingFaceView: View {
     var pupilOffset: CGPoint = .zero
     var isLeftEyeClosed = false
@@ -1250,6 +1737,11 @@ struct NaiwaLivingFaceView: View {
     var dizzyProgress: CGFloat = 0
     var backgroundTheme: NaiwaBackgroundTheme = .yellow
     var showBelly: Bool = true
+    var silhouette: NaiwaSilhouette = .block
+    var tiltedEyes: Bool = false
+    var sceneBackground: NaiwaSceneBackground = .white
+    var hairstyle: NaiwaHairstyle = .none
+    var speech: SpeechController? = nil
 
     @State private var blink: CGFloat = 0
     @State private var breatheScale: CGFloat = 1.0
@@ -1268,16 +1760,24 @@ struct NaiwaLivingFaceView: View {
             let closeLeft = max(blink, isLeftEyeClosed ? 1 : 0, sleepClose)
             let closeRight = max(blink, isRightEyeClosed ? 1 : 0, sleepClose)
 
+            // 剪影模式下背景渐变锚定到轮廓顶点
+            let skinAnchor: CGFloat = {
+                guard let apexDy = silhouette.apexDy else { return 0 }
+                let apexY = geometry.size.height * NaiwaFaceSpec.eyeLineHeightFraction
+                    + apexDy * geometry.size.width * NaiwaSilhouetteSpec.scale
+                return max(0, apexY / geometry.size.height)
+            }()
+
             ZStack {
                 // Static skin layer sitting behind everything that can wobble/scale.
                 // Fills the corners that get exposed when the wobble group rotates
                 // ± 2.5° during dizzy — same gradient as the moving skin, so the
                 // seam at the rotating edge is invisible.
-                NaiwaReworkSkinView()
+                NaiwaReworkSkinView(topAnchor: skinAnchor)
 
                 Group {
                     Group {
-                NaiwaReworkSkinView()
+                NaiwaReworkSkinView(topAnchor: skinAnchor)
                 if showBelly {
                     NaiwaReworkBellyView()
                 }
@@ -1293,6 +1793,11 @@ struct NaiwaLivingFaceView: View {
                                 .position(x: mouth.x, y: mouth.y + unit * 0.035)
                             NaiwaReworkMouthView(unit: unit)
                                 .position(x: mouth.x, y: mouth.y)
+                            if let speech {
+                                // 说话口型：叠在微笑之上，随真实语音振幅开合
+                                NaiwaSpeakLayer(speech: speech, unit: unit)
+                                    .position(x: mouth.x, y: mouth.y)
+                            }
                             NaiwaDroolView(unit: unit, isDrooling: isDrooling)
                                 .position(
                                     x: mouth.x + NaiwaFaceSpec.mouthWidth * unit * 0.48,
@@ -1304,7 +1809,8 @@ struct NaiwaLivingFaceView: View {
                                 closeAmount: closeLeft,
                                 isLeft: true,
                                 dizzyProgress: dizzyProgress,
-                                strongSeam: isLeftEyeClosed || isSleeping
+                                strongSeam: isLeftEyeClosed || isSleeping,
+                                tilted: tiltedEyes
                             )
                             .position(eyes.left)
                             .animation(
@@ -1317,7 +1823,8 @@ struct NaiwaLivingFaceView: View {
                                 closeAmount: closeRight,
                                 isLeft: false,
                                 dizzyProgress: dizzyProgress,
-                                strongSeam: isRightEyeClosed || isSleeping
+                                strongSeam: isRightEyeClosed || isSleeping,
+                                tilted: tiltedEyes
                             )
                             .position(eyes.right)
                             .animation(
@@ -1329,6 +1836,8 @@ struct NaiwaLivingFaceView: View {
                         .scaleEffect(1 - 0.05 * progress, anchor: UnitPoint(x: 0.5, y: 0.38))
 
                         Group {
+                            // 大笑眼始终水平（不受倾斜眼设置影响）——倾斜后的月牙
+                            // 太陡不好看，大笑时回到对称的经典样子。
                             NaiwaLaughEyeView(unit: unit, squeeze: pulse, isLeft: true)
                                 .position(eyes.left)
                             NaiwaLaughEyeView(unit: unit, squeeze: pulse, isLeft: false)
@@ -1366,6 +1875,13 @@ struct NaiwaLivingFaceView: View {
                     .opacity(isLaughing ? 0 : 1)
                     .animation(.easeInOut(duration: 0.35), value: isLaughing)
                     .allowsHitTesting(false)
+
+                // 剪影蒙版：压在一切之上（含眩晕摇摆时露出的角落）。放在最外层而
+                // 非摇摆组内 —— 角色在固定的"剪影窗口"里摇，轮廓纹丝不动。
+                NaiwaSilhouetteMaskView(style: silhouette, backgroundColor: sceneBackground.color)
+
+                // 发型：最顶层装饰，锚定头顶（剪影模式用轮廓顶点，整块模式用默认值）
+                NaiwaHairstyleView(style: hairstyle, apexDy: silhouette.apexDy ?? -0.34)
             }
         }
         .ignoresSafeArea()
@@ -1678,4 +2194,12 @@ struct NaiwaDizzyStarsView: View {
 
 #Preview("Dizzy") {
     NaiwaLivingFaceView(dizzyProgress: 1)
+}
+
+#Preview("Frog Silhouette") {
+    NaiwaLivingFaceView(silhouette: .frog)
+}
+
+#Preview("Egg Silhouette") {
+    NaiwaLivingFaceView(silhouette: .egg)
 }

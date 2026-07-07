@@ -254,6 +254,107 @@ final class LaughController {
     }
 }
 
+// MARK: - Speech Controller
+
+@MainActor
+@Observable
+final class SpeechController {
+    /// 四段经典台词。rawValue = 文件名（也就是角色说的话）。
+    enum Voice: String, CaseIterable {
+        case v1 = "1-嘎嘎滴辣虾"
+        case v2 = "2-噶脚塞"
+        case v3 = "3-安迪"
+        case v4 = "4-戏弄比诺机"
+    }
+
+    var isSpeaking = false
+    /// 当前嘴巴开合量 0…1，由真实语音振幅驱动。
+    var openness: CGFloat = 0
+
+    @ObservationIgnored private var players: [Voice: AVAudioPlayer] = [:]
+    @ObservationIgnored private var current: AVAudioPlayer?
+    @ObservationIgnored private var meterTask: Task<Void, Never>?
+    @ObservationIgnored private var playbackID = UUID()
+
+    func preload() {
+        for voice in Voice.allCases where players[voice] == nil {
+            guard let player = Self.makePlayer(for: voice) else { continue }
+            player.isMeteringEnabled = true
+            player.prepareToPlay()
+            players[voice] = player
+        }
+    }
+
+    func speak(_ voice: Voice) {
+        playbackID = UUID()
+        let id = playbackID
+        meterTask?.cancel()
+        current?.stop()
+        isSpeaking = true
+
+        guard let player = players[voice] ?? Self.makePlayer(for: voice) else {
+            // 找不到音频也能张嘴：合成一段口型，功能优雅降级
+            syntheticTalk(id: id, duration: 1.4)
+            return
+        }
+        players[voice] = player
+        player.isMeteringEnabled = true
+        player.currentTime = 0
+        player.prepareToPlay()
+        current = player
+        player.play()
+        meterLoop(id: id)
+    }
+
+    func stop() {
+        playbackID = UUID()
+        meterTask?.cancel()
+        meterTask = nil
+        current?.stop()
+        current = nil
+        isSpeaking = false
+        openness = 0
+    }
+
+    // 读实时音量表，映射成嘴巴开合，低通平滑避免抖动。
+    private func meterLoop(id: UUID) {
+        meterTask = Task { @MainActor in
+            while !Task.isCancelled, id == playbackID, let player = current, player.isPlaying {
+                player.updateMeters()
+                let db = player.averagePower(forChannel: 0)          // -160…0
+                let linear = pow(10.0, Double(db) / 20.0)            // 0…1
+                let target = CGFloat(min(max((linear - 0.02) * 1.9, 0), 1))
+                openness = openness * 0.45 + target * 0.55
+                try? await Task.sleep(for: .milliseconds(33))
+            }
+            if id == playbackID { stop() }
+        }
+    }
+
+    // 无音频时的合成口型：两个频率叠加，读起来像连续音节。
+    private func syntheticTalk(id: UUID, duration: Double) {
+        meterTask = Task { @MainActor in
+            var t = 0.0
+            while !Task.isCancelled, id == playbackID, t < duration {
+                let s = abs(sin(t * 13.0)) * 0.7 + abs(sin(t * 7.3)) * 0.3
+                openness = openness * 0.4 + CGFloat(min(max(s, 0), 1)) * 0.6
+                try? await Task.sleep(for: .milliseconds(33))
+                t += 0.033
+            }
+            if id == playbackID { stop() }
+        }
+    }
+
+    private static func makePlayer(for voice: Voice) -> AVAudioPlayer? {
+        let name = voice.rawValue
+        // 语音包可能作为 group（扁平进包根目录）或 folder reference（带子目录）加入
+        let url = Bundle.main.url(forResource: name, withExtension: "mp3")
+            ?? Bundle.main.url(forResource: name, withExtension: "mp3", subdirectory: "语音包")
+        guard let url else { return nil }
+        return try? AVAudioPlayer(contentsOf: url)
+    }
+}
+
 // MARK: - Naiwa Eye
 
 struct NaiwaEyeView: View {
@@ -446,6 +547,7 @@ struct NaiwaBellyView: View {
 struct ContentView: View {
     @State private var faceTracker = FaceTracker()
     @State private var laughController = LaughController()
+    @State private var speech = SpeechController()
     @State private var shakeDetector = ShakeDetector()
     @State private var dragPupilOffset: CGPoint?
     @State private var isLeftEyeClosed = false
@@ -461,6 +563,10 @@ struct ContentView: View {
     @State private var showControlPanel = false
     @AppStorage("naiwaBellyEnabled") private var bellyEnabled: Bool = true
     @AppStorage("naiwaBackgroundThemeRaw") private var backgroundThemeRaw: String = NaiwaBackgroundTheme.yellow.rawValue
+    @AppStorage("naiwaSilhouette") private var silhouetteRaw: String = NaiwaSilhouette.block.rawValue
+    @AppStorage("naiwaTiltedEyes") private var tiltedEyes: Bool = false
+    @AppStorage("naiwaSceneBackgroundRaw") private var sceneBackgroundRaw: String = NaiwaSceneBackground.white.rawValue
+    @AppStorage("naiwaHairstyleRaw") private var hairstyleRaw: String = NaiwaHairstyle.none.rawValue
     @Environment(\.scenePhase) private var scenePhase
 
     private static let sleepIdleThreshold: TimeInterval = 60
@@ -472,14 +578,20 @@ struct ContentView: View {
         NaiwaBackgroundTheme(rawValue: backgroundThemeRaw) ?? .yellow
     }
 
-    private var pupilDartAmount: CGFloat {
-        CGFloat(min(max(shakeDetector.intensity - 0.2, 0) / 1.0, 1))
+    private var silhouette: NaiwaSilhouette {
+        NaiwaSilhouette(rawValue: silhouetteRaw) ?? .block
     }
 
-    private enum ExpressionControl {
-        case leftEye
-        case rightEye
-        case mouth
+    private var sceneBackground: NaiwaSceneBackground {
+        NaiwaSceneBackground(rawValue: sceneBackgroundRaw) ?? .white
+    }
+
+    private var hairstyle: NaiwaHairstyle {
+        NaiwaHairstyle(rawValue: hairstyleRaw) ?? .none
+    }
+
+    private var pupilDartAmount: CGFloat {
+        CGFloat(min(max(shakeDetector.intensity - 0.2, 0) / 1.0, 1))
     }
 
     private enum EyeSide {
@@ -506,7 +618,12 @@ struct ContentView: View {
                             isDrooling: isDrooling,
                             dizzyProgress: dizzyProgress,
                             backgroundTheme: backgroundTheme,
-                            showBelly: bellyEnabled
+                            showBelly: bellyEnabled,
+                            silhouette: silhouette,
+                            tiltedEyes: tiltedEyes,
+                            sceneBackground: sceneBackground,
+                            hairstyle: hairstyle,
+                            speech: speech
                         )
                         .allowsHitTesting(false)
 
@@ -517,36 +634,39 @@ struct ContentView: View {
                 }
 
                 VStack {
-                    HStack(spacing: 0) {
+                    HStack(spacing: 10) {
                         Spacer()
                         Button {
                             showControlPanel = true
                         } label: {
                             Image(systemName: "slider.horizontal.3")
-                                .font(.system(size: 22, weight: .medium))
-                                .foregroundColor(.black.opacity(0.4))
-                                .frame(width: 44, height: 44)
-                                .contentShape(Rectangle())
+                                .font(.system(size: 18, weight: .semibold))
+                                .foregroundStyle(.white)
+                                .frame(width: 38, height: 38)
+                                .background(.black.opacity(0.22), in: Circle())
+                                .contentShape(Circle())
                         }
                         NavigationLink {
                             SettingsView()
                         } label: {
-                            Image(systemName: "info.circle")
-                                .font(.system(size: 22, weight: .medium))
-                                .foregroundColor(.black.opacity(0.4))
-                                .frame(width: 44, height: 44)
-                                .contentShape(Rectangle())
+                            Image(systemName: "info.circle.fill")
+                                .font(.system(size: 18, weight: .semibold))
+                                .foregroundStyle(.white)
+                                .frame(width: 38, height: 38)
+                                .background(.black.opacity(0.22), in: Circle())
+                                .contentShape(Circle())
                         }
                     }
                     Spacer()
                 }
-                .padding(.trailing, 4)
+                .padding(.trailing, 12)
             }
             .toolbar(.hidden, for: .navigationBar)
             .onAppear {
                 faceTracker.requestAccessAndStart()
                 shakeDetector.start()
                 preloadDizzyPlayer()
+                speech.preload()
             }
             .onChange(of: scenePhase) { _, phase in
                 if phase == .active {
@@ -555,10 +675,12 @@ struct ContentView: View {
                     try? AVAudioSession.sharedInstance().setActive(true)
                 } else {
                     shakeDetector.stop()
+                    speech.stop()
                 }
             }
             .onChange(of: laughController.isLaughing) { _, laughing in
                 if laughing {
+                    speech.stop()
                     shakeDetector.reset()
                     dizzyPlayer?.stop()
                     if isDizzy {
@@ -580,11 +702,25 @@ struct ContentView: View {
                     theme: Binding(
                         get: { backgroundTheme },
                         set: { backgroundThemeRaw = $0.rawValue }
+                    ),
+                    silhouette: Binding(
+                        get: { silhouette },
+                        set: { silhouetteRaw = $0.rawValue }
+                    ),
+                    tiltedEyes: $tiltedEyes,
+                    sceneBackground: Binding(
+                        get: { sceneBackground },
+                        set: { sceneBackgroundRaw = $0.rawValue }
+                    ),
+                    hairstyle: Binding(
+                        get: { hairstyle },
+                        set: { hairstyleRaw = $0.rawValue }
                     )
                 )
-                .presentationDetents([.height(280)])
+                .presentationDetents([.height(600), .large])
                 .presentationDragIndicator(.visible)
-                .presentationBackground(Color.white)
+                .presentationCornerRadius(34)
+                .presentationBackground(Color(red: 0.949, green: 0.949, blue: 0.965))
             }
             .task {
                 while !Task.isCancelled {
@@ -608,6 +744,7 @@ struct ContentView: View {
                     } else {
                         let shouldEnter = idle > Self.sleepIdleThreshold
                             && !laughController.isLaughing
+                            && !speech.isSpeaking
                             && !isDizzy
                             && shakeDetector.intensity < 0.3
                         if shouldEnter {
@@ -688,7 +825,9 @@ struct ContentView: View {
                     return
                 }
                 guard dragDistance(for: value) > 8 else { return }
-                guard expressionControl(at: value.startLocation, in: size) == nil else {
+                // Only eyes/mouth block pupil-dragging; dragging from the body
+                // (which taps to speak) should still steer the pupils.
+                if blocksPupilDrag(at: value.startLocation, in: size) {
                     dragPupilOffset = nil
                     return
                 }
@@ -743,15 +882,32 @@ struct ContentView: View {
             return
         }
 
-        switch expressionControl(at: point, in: size) {
+        switch NaiwaFaceSpec.hitRegion(at: point, in: size) {
         case .leftEye:
             closeEye(.left)
         case .rightEye:
             closeEye(.right)
-        case .mouth:
+        case .speakTopLeft:
+            speech.speak(.v1)
+        case .speakBottomLeft:
+            speech.speak(.v2)
+        case .speakTopRight:
+            speech.speak(.v3)
+        case .speakBottomRight:
+            speech.speak(.v4)
+        case .mouth, .belly, nil:
+            // 嘴 / 底部长方形 / 其它空白 → 大笑（先停掉可能在进行的说话）
+            speech.stop()
             laughController.play()
-        case nil:
-            laughController.play()
+        }
+    }
+
+    private func blocksPupilDrag(at point: CGPoint, in size: CGSize) -> Bool {
+        switch NaiwaFaceSpec.hitRegion(at: point, in: size) {
+        case .leftEye, .rightEye, .mouth:
+            return true
+        default:
+            return false
         }
     }
 
@@ -796,19 +952,6 @@ struct ContentView: View {
         )
     }
 
-    private func expressionControl(at point: CGPoint, in size: CGSize) -> ExpressionControl? {
-        switch NaiwaFaceSpec.hitRegion(at: point, in: size) {
-        case .leftEye:
-            return .leftEye
-        case .rightEye:
-            return .rightEye
-        case .mouth:
-            return .mouth
-        case nil:
-            return nil
-        }
-    }
-
 }
 
 // MARK: - Naiwa Control Panel
@@ -816,66 +959,207 @@ struct ContentView: View {
 struct NaiwaControlPanel: View {
     @Binding var bellyEnabled: Bool
     @Binding var theme: NaiwaBackgroundTheme
+    @Binding var silhouette: NaiwaSilhouette
+    @Binding var tiltedEyes: Bool
+    @Binding var sceneBackground: NaiwaSceneBackground
+    @Binding var hairstyle: NaiwaHairstyle
+
+    // Restrained graphite frame — the character swatches carry the color, the
+    // chrome stays quiet. Reads more premium than multi-accent iOS-settings.
+    private let graphite = Color(red: 0.16, green: 0.16, blue: 0.19)
+    private let chipSpring = Animation.spring(response: 0.34, dampingFraction: 0.72)
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 22) {
-            bellyRow
-            themeRow
-            Spacer(minLength: 0)
+        ScrollView(showsIndicators: false) {
+            VStack(alignment: .leading, spacing: 14) {
+                header
+
+                card(icon: "theatermasks.fill", title: "造型") {
+                    chipRow(NaiwaSilhouette.allCases, isSelected: { $0 == silhouette }) { style in
+                        withAnimation(chipSpring) { silhouette = style }
+                    }
+                }
+
+                card(icon: "scissors", title: "发型") {
+                    chipRow(NaiwaHairstyle.allCases, isSelected: { $0 == hairstyle }) { style in
+                        withAnimation(chipSpring) { hairstyle = style }
+                    }
+                }
+
+                card(icon: "wand.and.stars", title: "外观") {
+                    VStack(spacing: 0) {
+                        toggleRow(icon: "circle.bottomhalf.filled", title: "显示肚子", isOn: $bellyEnabled)
+                        rowDivider
+                        toggleRow(icon: "eye.fill", title: "眼睛倾斜", isOn: $tiltedEyes)
+                    }
+                }
+
+                card(icon: "paintpalette.fill", title: "配色") {
+                    VStack(alignment: .leading, spacing: 18) {
+                        swatchGroup(label: "身体") {
+                            ForEach(NaiwaBackgroundTheme.allCases) { swatch in
+                                Button {
+                                    withAnimation(chipSpring) { theme = swatch }
+                                } label: {
+                                    themeSwatch(for: swatch)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                        swatchGroup(label: "背景") {
+                            ForEach(NaiwaSceneBackground.allCases) { bg in
+                                Button {
+                                    withAnimation(chipSpring) { sceneBackground = bg }
+                                } label: {
+                                    bgColorSwatch(for: bg)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                    }
+                }
+            }
+            .padding(.horizontal, 22)
+            .padding(.top, 14)
+            .padding(.bottom, 32)
         }
-        .padding(.horizontal, 24)
-        .padding(.top, 20)
-        .padding(.bottom, 24)
     }
 
-    private var bellyRow: some View {
-        HStack(spacing: 12) {
-            Image(systemName: "circle.bottomhalf.filled")
-                .font(.system(size: 18))
-                .foregroundColor(.black.opacity(0.75))
-                .frame(width: 24)
-            Text("显示肚子")
-                .font(.system(size: 16))
+    // MARK: Header
+
+    private var header: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text("装扮奶蛙")
+                .font(.system(size: 26, weight: .bold, design: .rounded))
+                .foregroundColor(.black)
+            Text("捏一捏，换个样子")
+                .font(.system(size: 13, weight: .medium))
+                .foregroundColor(.black.opacity(0.38))
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.leading, 4)
+        .padding(.bottom, 2)
+    }
+
+    // MARK: Card container
+
+    private func card<Content: View>(
+        icon: String,
+        title: String,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(spacing: 7) {
+                Image(systemName: icon)
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(graphite.opacity(0.55))
+                Text(title)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(graphite.opacity(0.55))
+                    .kerning(1.5)
+                Spacer()
+            }
+            content()
+        }
+        .padding(20)
+        .background(
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .fill(Color.white)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .strokeBorder(Color.black.opacity(0.035), lineWidth: 1)
+        )
+        .shadow(color: Color.black.opacity(0.06), radius: 16, x: 0, y: 6)
+        .shadow(color: Color.black.opacity(0.03), radius: 2, x: 0, y: 1)
+    }
+
+    // MARK: Chip row (shared by 造型 / 发型)
+
+    private func chipRow<Item: Identifiable & CaseIterable & NaiwaNamed>(
+        _ items: Item.AllCases,
+        isSelected: @escaping (Item) -> Bool,
+        onTap: @escaping (Item) -> Void
+    ) -> some View {
+        HStack(spacing: 8) {
+            ForEach(Array(items)) { item in
+                chip(item.displayName, selected: isSelected(item)) {
+                    onTap(item)
+                }
+            }
+        }
+    }
+
+    private func chip(_ title: String, selected: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title)
+                .font(.system(size: 13.5, weight: selected ? .semibold : .medium))
+                .foregroundColor(selected ? .white : graphite.opacity(0.62))
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+                .frame(maxWidth: .infinity)
+                .frame(height: 40)
+                .background(
+                    Capsule(style: .continuous)
+                        .fill(selected ? graphite : Color.black.opacity(0.045))
+                )
+                .shadow(
+                    color: selected ? graphite.opacity(0.25) : .clear,
+                    radius: 7, x: 0, y: 4
+                )
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: Toggle row
+
+    private func toggleRow(icon: String, title: String, isOn: Binding<Bool>) -> some View {
+        HStack(spacing: 14) {
+            Image(systemName: icon)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: 30, height: 30)
+                .background(
+                    RoundedRectangle(cornerRadius: 9, style: .continuous)
+                        .fill(graphite)
+                )
+            Text(title)
+                .font(.system(size: 16, weight: .medium))
                 .foregroundColor(.black)
             Spacer()
-            Toggle("", isOn: $bellyEnabled)
+            Toggle("", isOn: isOn)
                 .labelsHidden()
-                .tint(.black)
+                .tint(graphite)
         }
+        .frame(height: 44)
     }
 
-    private var themeRow: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(spacing: 12) {
-                Image(systemName: "paintpalette.fill")
-                    .font(.system(size: 16))
-                    .foregroundColor(.black.opacity(0.75))
-                    .frame(width: 24)
-                Text("背景配色")
-                    .font(.system(size: 16))
-                    .foregroundColor(.black)
-                Spacer()
+    private var rowDivider: some View {
+        Rectangle()
+            .fill(Color.black.opacity(0.05))
+            .frame(height: 1)
+            .padding(.leading, 44)
+    }
+
+    // MARK: Swatch group
+
+    private func swatchGroup<Content: View>(
+        label: String,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(label)
+                .font(.system(size: 13, weight: .medium))
+                .foregroundColor(graphite.opacity(0.4))
+            HStack(spacing: 14) {
+                content()
+                Spacer(minLength: 0)
             }
-            HStack(spacing: 16) {
-                ForEach(NaiwaBackgroundTheme.allCases) { swatch in
-                    Button {
-                        withAnimation(.easeInOut(duration: 0.4)) {
-                            theme = swatch
-                        }
-                    } label: {
-                        themeSwatch(for: swatch)
-                    }
-                    .buttonStyle(.plain)
-                }
-                Spacer()
-            }
-            .padding(.leading, 36)
         }
     }
 
     private func themeSwatch(for swatch: NaiwaBackgroundTheme) -> some View {
-        let selected = theme == swatch
-        return ZStack {
+        swatchCircle(selected: theme == swatch) {
             Circle()
                 .fill(
                     LinearGradient(
@@ -884,20 +1168,44 @@ struct NaiwaControlPanel: View {
                         endPoint: .bottom
                     )
                 )
-                .frame(width: 32, height: 32)
-                .overlay(
-                    Circle().strokeBorder(Color.black.opacity(0.08), lineWidth: 0.5)
-                )
-
-            if selected {
-                Circle()
-                    .strokeBorder(Color.black.opacity(0.85), lineWidth: 2)
-                    .frame(width: 40, height: 40)
-            }
         }
-        .frame(width: 40, height: 40)
+    }
+
+    private func bgColorSwatch(for bg: NaiwaSceneBackground) -> some View {
+        swatchCircle(selected: sceneBackground == bg) {
+            Circle().fill(bg.color)
+        }
+    }
+
+    private func swatchCircle<Fill: View>(
+        selected: Bool,
+        @ViewBuilder fill: () -> Fill
+    ) -> some View {
+        ZStack {
+            fill()
+                .frame(width: 34, height: 34)
+                .overlay(
+                    Circle().strokeBorder(Color.black.opacity(0.10), lineWidth: 0.5)
+                )
+                .shadow(color: Color.black.opacity(selected ? 0.14 : 0.05), radius: 3, y: 1)
+
+            Circle()
+                .strokeBorder(graphite.opacity(0.9), lineWidth: 2.5)
+                .frame(width: 44, height: 44)
+                .opacity(selected ? 1 : 0)
+                .scaleEffect(selected ? 1 : 0.7)
+        }
+        .frame(width: 44, height: 44)
     }
 }
+
+/// 让造型 / 发型枚举能被通用 chipRow 复用
+protocol NaiwaNamed {
+    var displayName: String { get }
+}
+
+extension NaiwaSilhouette: NaiwaNamed {}
+extension NaiwaHairstyle: NaiwaNamed {}
 
 #Preview {
     ContentView()
@@ -906,6 +1214,10 @@ struct NaiwaControlPanel: View {
 #Preview("Control Panel") {
     NaiwaControlPanel(
         bellyEnabled: .constant(true),
-        theme: .constant(.yellow)
+        theme: .constant(.yellow),
+        silhouette: .constant(.block),
+        tiltedEyes: .constant(false),
+        sceneBackground: .constant(.white),
+        hairstyle: .constant(.none)
     )
 }
